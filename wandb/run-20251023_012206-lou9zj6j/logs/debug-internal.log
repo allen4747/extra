@@ -1,0 +1,15 @@
+{"time":"2025-10-23T01:22:06.645016947+08:00","level":"INFO","msg":"stream: starting","core version":"0.21.1"}
+{"time":"2025-10-23T01:22:07.163344023+08:00","level":"INFO","msg":"stream: created new stream","id":"lou9zj6j"}
+{"time":"2025-10-23T01:22:07.16341388+08:00","level":"INFO","msg":"stream: started","id":"lou9zj6j"}
+{"time":"2025-10-23T01:22:07.163461644+08:00","level":"INFO","msg":"writer: started","stream_id":"lou9zj6j"}
+{"time":"2025-10-23T01:22:07.163691497+08:00","level":"INFO","msg":"sender: started","stream_id":"lou9zj6j"}
+{"time":"2025-10-23T01:22:07.163753655+08:00","level":"INFO","msg":"handler: started","stream_id":"lou9zj6j"}
+{"time":"2025-10-23T04:34:08.063289223+08:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": net/http: request canceled (Client.Timeout exceeded while awaiting headers)"}
+{"time":"2025-10-23T04:34:23.402999952+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/lou9zj6j/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-23T06:25:22.84172797+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/lou9zj6j/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-23T10:21:16.425463131+08:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading output.log","runtime_seconds":0.695020829,"progress":"223.9KB/223.9KB"},{"desc":"uploading config.yaml","runtime_seconds":0.366884663,"progress":"21.5KB/21.5KB"}],"total_operations":2}}
+{"time":"2025-10-23T10:21:17.500825382+08:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-10-23T10:21:17.809108534+08:00","level":"INFO","msg":"stream: closing","id":"lou9zj6j"}
+{"time":"2025-10-23T10:21:17.809146061+08:00","level":"INFO","msg":"handler: closed","stream_id":"lou9zj6j"}
+{"time":"2025-10-23T10:21:17.809221151+08:00","level":"INFO","msg":"sender: closed","stream_id":"lou9zj6j"}
+{"time":"2025-10-23T10:21:17.809233511+08:00","level":"INFO","msg":"stream: closed","id":"lou9zj6j"}

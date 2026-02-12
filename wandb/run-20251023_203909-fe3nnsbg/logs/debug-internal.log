@@ -1,0 +1,14 @@
+{"time":"2025-10-23T20:39:09.50855774+08:00","level":"INFO","msg":"stream: starting","core version":"0.21.1"}
+{"time":"2025-10-23T20:39:10.035488395+08:00","level":"INFO","msg":"stream: created new stream","id":"fe3nnsbg"}
+{"time":"2025-10-23T20:39:10.035548274+08:00","level":"INFO","msg":"stream: started","id":"fe3nnsbg"}
+{"time":"2025-10-23T20:39:10.035598162+08:00","level":"INFO","msg":"writer: started","stream_id":"fe3nnsbg"}
+{"time":"2025-10-23T20:39:10.035801881+08:00","level":"INFO","msg":"handler: started","stream_id":"fe3nnsbg"}
+{"time":"2025-10-23T20:39:10.035840161+08:00","level":"INFO","msg":"sender: started","stream_id":"fe3nnsbg"}
+{"time":"2025-10-23T21:03:26.304647672+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/fe3nnsbg/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-24T03:24:41.45579427+08:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": read tcp 172.28.181.68:51198->35.186.228.49:443: read: connection reset by peer"}
+{"time":"2025-10-24T05:35:26.187931313+08:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading output.log","runtime_seconds":0.713138261,"progress":"220.9KB/220.9KB"},{"desc":"uploading wandb-summary.json","runtime_seconds":0.713118199,"progress":"2.7KB/2.7KB"},{"desc":"uploading config.yaml","runtime_seconds":0.322364228,"progress":"21.6KB/21.6KB"}],"total_operations":3}}
+{"time":"2025-10-24T05:35:26.620295347+08:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-10-24T05:35:26.930905147+08:00","level":"INFO","msg":"stream: closing","id":"fe3nnsbg"}
+{"time":"2025-10-24T05:35:26.930954073+08:00","level":"INFO","msg":"handler: closed","stream_id":"fe3nnsbg"}
+{"time":"2025-10-24T05:35:26.931070527+08:00","level":"INFO","msg":"sender: closed","stream_id":"fe3nnsbg"}
+{"time":"2025-10-24T05:35:26.931109102+08:00","level":"INFO","msg":"stream: closed","id":"fe3nnsbg"}

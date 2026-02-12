@@ -1,0 +1,15 @@
+{"time":"2025-10-16T02:06:15.278350914+08:00","level":"INFO","msg":"stream: starting","core version":"0.21.1"}
+{"time":"2025-10-16T02:06:15.884194294+08:00","level":"INFO","msg":"stream: created new stream","id":"sjk7996w"}
+{"time":"2025-10-16T02:06:15.884282112+08:00","level":"INFO","msg":"stream: started","id":"sjk7996w"}
+{"time":"2025-10-16T02:06:15.884326918+08:00","level":"INFO","msg":"handler: started","stream_id":"sjk7996w"}
+{"time":"2025-10-16T02:06:15.884328162+08:00","level":"INFO","msg":"writer: started","stream_id":"sjk7996w"}
+{"time":"2025-10-16T02:06:15.884405676+08:00","level":"INFO","msg":"sender: started","stream_id":"sjk7996w"}
+{"time":"2025-10-16T02:59:16.63559358+08:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded"}
+{"time":"2025-10-16T04:00:31.75060215+08:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": net/http: request canceled (Client.Timeout exceeded while awaiting headers)"}
+{"time":"2025-10-16T07:46:34.758049141+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/sjk7996w/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-16T12:07:56.548481342+08:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading output.log","runtime_seconds":0.70389683,"progress":"243.0KB/243.0KB"}],"total_operations":1}}
+{"time":"2025-10-16T12:07:56.856839243+08:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-10-16T12:07:57.179381958+08:00","level":"INFO","msg":"stream: closing","id":"sjk7996w"}
+{"time":"2025-10-16T12:07:57.179660317+08:00","level":"INFO","msg":"handler: closed","stream_id":"sjk7996w"}
+{"time":"2025-10-16T12:07:57.179758991+08:00","level":"INFO","msg":"sender: closed","stream_id":"sjk7996w"}
+{"time":"2025-10-16T12:07:57.179823093+08:00","level":"INFO","msg":"stream: closed","id":"sjk7996w"}

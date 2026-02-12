@@ -1,0 +1,13 @@
+{"time":"2025-10-27T11:50:35.76699215+08:00","level":"INFO","msg":"stream: starting","core version":"0.21.1"}
+{"time":"2025-10-27T11:50:36.306291427+08:00","level":"INFO","msg":"stream: created new stream","id":"0kow1dg9"}
+{"time":"2025-10-27T11:50:36.306395002+08:00","level":"INFO","msg":"stream: started","id":"0kow1dg9"}
+{"time":"2025-10-27T11:50:36.306463602+08:00","level":"INFO","msg":"writer: started","stream_id":"0kow1dg9"}
+{"time":"2025-10-27T11:50:36.306607809+08:00","level":"INFO","msg":"sender: started","stream_id":"0kow1dg9"}
+{"time":"2025-10-27T11:50:36.30669948+08:00","level":"INFO","msg":"handler: started","stream_id":"0kow1dg9"}
+{"time":"2025-10-27T14:21:53.284858672+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/graphql","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-27T20:41:09.387831187+08:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading output.log","runtime_seconds":0.686888872,"progress":"221.0KB/221.0KB"},{"desc":"uploading wandb-summary.json","runtime_seconds":0.686876532,"progress":"2.7KB/2.7KB"},{"desc":"uploading config.yaml","runtime_seconds":0.411617039,"progress":"21.6KB/21.6KB"}],"total_operations":3}}
+{"time":"2025-10-27T20:41:09.874853128+08:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-10-27T20:41:10.227096417+08:00","level":"INFO","msg":"stream: closing","id":"0kow1dg9"}
+{"time":"2025-10-27T20:41:10.227141081+08:00","level":"INFO","msg":"handler: closed","stream_id":"0kow1dg9"}
+{"time":"2025-10-27T20:41:10.227248494+08:00","level":"INFO","msg":"sender: closed","stream_id":"0kow1dg9"}
+{"time":"2025-10-27T20:41:10.227289461+08:00","level":"INFO","msg":"stream: closed","id":"0kow1dg9"}

@@ -1,0 +1,7 @@
+{"time":"2025-11-12T14:33:08.367790864+08:00","level":"INFO","msg":"stream: starting","core version":"0.21.1"}
+{"time":"2025-11-12T14:33:08.888889811+08:00","level":"INFO","msg":"stream: created new stream","id":"2cj44lr2"}
+{"time":"2025-11-12T14:33:08.888940354+08:00","level":"INFO","msg":"stream: started","id":"2cj44lr2"}
+{"time":"2025-11-12T14:33:08.88909657+08:00","level":"INFO","msg":"writer: started","stream_id":"2cj44lr2"}
+{"time":"2025-11-12T14:33:08.889226326+08:00","level":"INFO","msg":"sender: started","stream_id":"2cj44lr2"}
+{"time":"2025-11-12T14:33:08.889286415+08:00","level":"INFO","msg":"handler: started","stream_id":"2cj44lr2"}
+{"time":"2025-11-13T07:52:40.156054263+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/2cj44lr2/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}

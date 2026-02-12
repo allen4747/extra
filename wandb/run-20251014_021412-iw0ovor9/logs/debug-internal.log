@@ -1,0 +1,14 @@
+{"time":"2025-10-14T02:14:13.149683342+08:00","level":"INFO","msg":"stream: starting","core version":"0.21.1"}
+{"time":"2025-10-14T02:14:13.76684721+08:00","level":"INFO","msg":"stream: created new stream","id":"iw0ovor9"}
+{"time":"2025-10-14T02:14:13.766933448+08:00","level":"INFO","msg":"stream: started","id":"iw0ovor9"}
+{"time":"2025-10-14T02:14:13.766939442+08:00","level":"INFO","msg":"handler: started","stream_id":"iw0ovor9"}
+{"time":"2025-10-14T02:14:13.766976432+08:00","level":"INFO","msg":"writer: started","stream_id":"iw0ovor9"}
+{"time":"2025-10-14T02:14:13.766976691+08:00","level":"INFO","msg":"sender: started","stream_id":"iw0ovor9"}
+{"time":"2025-10-14T05:27:44.617366137+08:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded (Client.Timeout exceeded while awaiting headers)"}
+{"time":"2025-10-14T08:12:32.125293487+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/iw0ovor9/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-14T09:26:11.523522632+08:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading output.log","runtime_seconds":0.708016417,"progress":"330.2KB/330.2KB"}],"total_operations":1}}
+{"time":"2025-10-14T09:26:11.912832687+08:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-10-14T09:26:12.269271042+08:00","level":"INFO","msg":"stream: closing","id":"iw0ovor9"}
+{"time":"2025-10-14T09:26:12.269322707+08:00","level":"INFO","msg":"handler: closed","stream_id":"iw0ovor9"}
+{"time":"2025-10-14T09:26:12.269405099+08:00","level":"INFO","msg":"sender: closed","stream_id":"iw0ovor9"}
+{"time":"2025-10-14T09:26:12.26942169+08:00","level":"INFO","msg":"stream: closed","id":"iw0ovor9"}

@@ -1,0 +1,15 @@
+{"time":"2025-10-23T01:22:23.710744201+08:00","level":"INFO","msg":"stream: starting","core version":"0.21.1"}
+{"time":"2025-10-23T01:22:24.212015678+08:00","level":"INFO","msg":"stream: created new stream","id":"i7x5b6ib"}
+{"time":"2025-10-23T01:22:24.212052761+08:00","level":"INFO","msg":"stream: started","id":"i7x5b6ib"}
+{"time":"2025-10-23T01:22:24.212254394+08:00","level":"INFO","msg":"writer: started","stream_id":"i7x5b6ib"}
+{"time":"2025-10-23T01:22:24.212472125+08:00","level":"INFO","msg":"sender: started","stream_id":"i7x5b6ib"}
+{"time":"2025-10-23T01:22:24.212474434+08:00","level":"INFO","msg":"handler: started","stream_id":"i7x5b6ib"}
+{"time":"2025-10-23T04:36:10.328785787+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/i7x5b6ib/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-23T04:37:39.077750414+08:00","level":"INFO","msg":"api: retrying HTTP error","status":502,"url":"https://api.wandb.ai/files/yc771462997-national-university-of-singapore/verl_grpo_cdpo_gsm8k/i7x5b6ib/file_stream","body":"\n<html><head>\n<meta http-equiv=\"content-type\" content=\"text/html;charset=utf-8\">\n<title>502 Server Error</title>\n</head>\n<body text=#000000 bgcolor=#ffffff>\n<h1>Error: Server Error</h1>\n<h2>The server encountered a temporary error and could not complete your request.<p>Please try again in 30 seconds.</h2>\n<h2></h2>\n</body></html>\n"}
+{"time":"2025-10-23T06:25:55.311869079+08:00","level":"INFO","msg":"api: retrying error","error":"Post \"https://api.wandb.ai/graphql\": context deadline exceeded"}
+{"time":"2025-10-23T10:34:49.250120933+08:00","level":"INFO","msg":"handler: operation stats","stats":{"operations":[{"desc":"uploading output.log","runtime_seconds":0.70509214,"progress":"220.3KB/220.3KB"},{"desc":"uploading wandb-summary.json","runtime_seconds":0.705072506,"progress":"2.7KB/2.7KB"},{"desc":"uploading config.yaml","runtime_seconds":0.352297087,"progress":"21.5KB/21.5KB"}],"total_operations":3}}
+{"time":"2025-10-23T10:34:49.744527426+08:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2025-10-23T10:34:50.054378668+08:00","level":"INFO","msg":"stream: closing","id":"i7x5b6ib"}
+{"time":"2025-10-23T10:34:50.054408333+08:00","level":"INFO","msg":"handler: closed","stream_id":"i7x5b6ib"}
+{"time":"2025-10-23T10:34:50.054470249+08:00","level":"INFO","msg":"sender: closed","stream_id":"i7x5b6ib"}
+{"time":"2025-10-23T10:34:50.054480318+08:00","level":"INFO","msg":"stream: closed","id":"i7x5b6ib"}

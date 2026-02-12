@@ -1,0 +1,607 @@
+_wandb:
+    value:
+        cli_version: 0.21.1
+        e:
+            7vrpmeos1bc0ox7k0cd9dn2gxcqhk0yr:
+                args:
+                    - --node-ip-address=172.28.181.68
+                    - --node-manager-port=44511
+                    - --object-store-name=/tmp/ray/session_2025-10-14_02-12-12_675648_4159534/sockets/plasma_store
+                    - --raylet-name=/tmp/ray/session_2025-10-14_02-12-12_675648_4159534/sockets/raylet
+                    - --redis-address=None
+                    - --metrics-agent-port=60474
+                    - --logging-rotate-bytes=536870912
+                    - --logging-rotate-backup-count=5
+                    - --runtime-env-agent-port=63508
+                    - --gcs-address=172.28.181.68:57882
+                    - --session-name=session_2025-10-14_02-12-12_675648_4159534
+                    - --temp-dir=/tmp/ray
+                    - --webui=127.0.0.1:8265
+                    - --cluster-id=ebefcbdf7889e54bd87cec04c81df2a5579f1ba6eedb821f48cbf94a
+                    - --startup-token=192
+                    - --worker-launch-time-ms=1760379137540
+                    - --node-id=3179bef5df200718dcc9d4f21934e3b9b4f5a39deff99c81a3bde016
+                    - --runtime-env-hash=-2054348966
+                    - --enable-resource-isolation=false
+                cpu_count: 96
+                cpu_count_logical: 192
+                cudaVersion: "12.8"
+                disk:
+                    /:
+                        total: "3778190245888"
+                        used: "3348976709632"
+                email: yc771462997@gmail.com
+                executable: /home/wenyang/miniconda3/envs/verl/bin/python3
+                gpu: NVIDIA H200
+                gpu_count: 8
+                gpu_nvidia:
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-71cef46c-16fa-2f11-7882-0eeb21329b9d
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-988eb17b-7375-5fb2-803f-c3920411eed4
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-d870ec2f-01de-46b0-b097-98cf4c30e5fa
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-3418f531-2f6a-f1e1-dd93-41faca22e314
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-a358fb69-4997-0351-3601-378a3941ae43
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-c4b06b21-e7a1-f998-096c-c273b85868ca
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-1588255e-1efd-2a8a-47c3-63b04f1868bf
+                    - architecture: Hopper
+                      cudaCores: 16896
+                      memoryTotal: "150754820096"
+                      name: NVIDIA H200
+                      uuid: GPU-d8403059-462f-8457-91d3-136b0b0d1c72
+                host: maplecg-hopper
+                memory:
+                    total: "1081837789184"
+                os: Linux-5.15.0-131-generic-x86_64-with-glibc2.35
+                program: /home/wenyang/miniconda3/envs/verl/lib/python3.10/site-packages/ray/_private/workers/default_worker.py
+                python: CPython 3.10.0
+                root: /home/wenyang/RLTraining
+                startedAt: "2025-10-13T18:14:12.930068Z"
+                writerId: 7vrpmeos1bc0ox7k0cd9dn2gxcqhk0yr
+        m: []
+        python_version: 3.10.0
+        t:
+            "1":
+                - 1
+                - 11
+                - 30
+                - 41
+                - 49
+                - 50
+                - 51
+                - 71
+                - 98
+                - 105
+            "2":
+                - 1
+                - 11
+                - 30
+                - 41
+                - 49
+                - 50
+                - 51
+                - 71
+                - 98
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+                - 61
+            "4": 3.10.0
+            "5": 0.21.1
+            "6": 4.51.1
+            "12": 0.21.1
+            "13": linux-x86_64
+actor_rollout_ref:
+    value:
+        actor:
+            _target_: verl.workers.config.FSDPActorConfig
+            checkpoint:
+                _target_: verl.trainer.config.CheckpointConfig
+                async_save: false
+                load_contents:
+                    - model
+                    - optimizer
+                    - extra
+                save_contents:
+                    - model
+                    - optimizer
+                    - extra
+            clip_ratio: 0.2
+            clip_ratio_c: 3
+            clip_ratio_high: 0.2
+            clip_ratio_low: 0.2
+            entropy_checkpointing: false
+            entropy_coeff: 0
+            entropy_from_logits_with_chunking: false
+            fsdp_config:
+                _target_: verl.workers.config.FSDPEngineConfig
+                forward_prefetch: false
+                fsdp_size: -1
+                offload_policy: false
+                optimizer_offload: false
+                param_offload: false
+                reshard_after_forward: true
+                wrap_policy:
+                    min_num_params: 0
+            grad_clip: 1
+            kl_loss_coef: 0.001
+            kl_loss_type: low_var_kl
+            loss_agg_mode: token-mean
+            optim:
+                _target_: verl.workers.config.FSDPOptimizerConfig
+                lr: 1e-06
+                lr_warmup_steps: -1
+                lr_warmup_steps_ratio: 0
+                min_lr_ratio: 0
+                num_cycles: 0.5
+                total_training_steps: 105
+                warmup_style: constant
+                weight_decay: 0.01
+            policy_loss:
+                _target_: verl.workers.config.PolicyLossConfig
+                clip_cov_lb: 1
+                clip_cov_ratio: 0.0002
+                clip_cov_ub: 5
+                kl_cov_ratio: 0.0002
+                loss_mode: vanilla
+                ppo_kl_coef: 0.1
+            ppo_epochs: 1
+            ppo_max_token_len_per_gpu: 16384
+            ppo_micro_batch_size: null
+            ppo_micro_batch_size_per_gpu: 20
+            ppo_mini_batch_size: 80
+            profiler:
+                _target_: verl.utils.profiler.ProfilerConfig
+                all_ranks: false
+                enable: false
+                ranks: []
+                save_path: outputs/profile
+                tool: null
+                tool_config:
+                    npu:
+                        _target_: verl.utils.profiler.config.NPUToolConfig
+                        analysis: true
+                        contents: []
+                        discrete: false
+                        level: level1
+                    nsys:
+                        _target_: verl.utils.profiler.config.NsightToolConfig
+                        discrete: false
+                    torch:
+                        _target_: verl.utils.profiler.config.TorchProfilerToolConfig
+                        step_end: null
+                        step_start: 0
+            shuffle: false
+            strategy: fsdp
+            ulysses_sequence_parallel_size: 1
+            use_dynamic_bsz: false
+            use_fused_kernels: false
+            use_kl_loss: true
+            use_remove_padding: false
+            use_torch_compile: true
+        hybrid_engine: true
+        model:
+            custom_chat_template: null
+            enable_activation_offload: false
+            enable_gradient_checkpointing: true
+            exclude_modules: null
+            external_lib: null
+            fused_kernel_options:
+                impl_backend: torch
+            lora_alpha: 16
+            lora_rank: 0
+            path: Qwen/Qwen3-1.7B
+            target_modules: all-linear
+            trust_remote_code: false
+            use_fused_kernels: false
+            use_liger: false
+            use_remove_padding: false
+            use_shm: false
+        nccl_timeout: 600
+        ref:
+            entropy_checkpointing: false
+            entropy_from_logits_with_chunking: false
+            fsdp_config:
+                _target_: verl.workers.config.FSDPEngineConfig
+                forward_prefetch: false
+                param_offload: true
+                reshard_after_forward: true
+                wrap_policy:
+                    min_num_params: 0
+            log_prob_max_token_len_per_gpu: 16384
+            log_prob_micro_batch_size: null
+            log_prob_micro_batch_size_per_gpu: 20
+            log_prob_use_dynamic_bsz: false
+            model: null
+            profiler:
+                _target_: verl.utils.profiler.ProfilerConfig
+                all_ranks: false
+                enable: false
+                ranks: []
+                save_path: outputs/profile
+                tool: null
+                tool_config:
+                    npu:
+                        _target_: verl.utils.profiler.config.NPUToolConfig
+                        analysis: true
+                        contents: []
+                        discrete: false
+                        level: level1
+                    nsys:
+                        _target_: verl.utils.profiler.config.NsightToolConfig
+                        discrete: false
+                    torch:
+                        _target_: verl.utils.profiler.config.TorchProfilerToolConfig
+                        step_end: null
+                        step_start: 0
+            strategy: fsdp
+            ulysses_sequence_parallel_size: 1
+            use_torch_compile: true
+        rollout:
+            _target_: verl.workers.config.RolloutConfig
+            agent:
+                _target_: verl.workers.config.AgentLoopConfig
+                agent_loop_config_path: null
+                custom_async_server:
+                    _target_: verl.workers.config.CustomAsyncServerConfig
+                    name: null
+                    path: null
+                num_workers: 8
+            calculate_log_probs: false
+            cudagraph_capture_sizes: null
+            disable_log_stats: true
+            do_sample: true
+            dtype: bfloat16
+            enable_chunked_prefill: true
+            enforce_eager: false
+            free_cache_engine: true
+            gpu_memory_utilization: 0.6
+            ignore_eos: false
+            layered_summon: false
+            load_format: dummy_dtensor
+            log_prob_max_token_len_per_gpu: 16384
+            log_prob_micro_batch_size: null
+            log_prob_micro_batch_size_per_gpu: 20
+            log_prob_use_dynamic_bsz: false
+            max_model_len: null
+            max_num_batched_tokens: 8192
+            max_num_seqs: 1024
+            mode: sync
+            multi_stage_wake_up: false
+            multi_turn:
+                _target_: verl.workers.config.MultiTurnConfig
+                enable: false
+                format: hermes
+                interaction_config_path: null
+                max_assistant_turns: null
+                max_parallel_calls: 1
+                max_tool_response_length: 256
+                max_user_turns: null
+                tokenization_sanity_check_mode: strict
+                tool_config_path: null
+                tool_response_truncate_side: middle
+                use_inference_chat_template: false
+            "n": 3
+            name: vllm
+            over_sample_rate: 0
+            profiler:
+                _target_: verl.utils.profiler.ProfilerConfig
+                all_ranks: false
+                enable: false
+                ranks: []
+                save_path: outputs/profile
+                tool: null
+                tool_config:
+                    npu:
+                        _target_: verl.utils.profiler.config.NPUToolConfig
+                        analysis: true
+                        contents: []
+                        discrete: false
+                        level: level1
+                    nsys:
+                        _target_: verl.utils.profiler.config.NsightToolConfig
+                        discrete: false
+                    torch:
+                        _target_: verl.utils.profiler.config.TorchProfilerToolConfig
+                        step_end: null
+                        step_start: 0
+            prompt_length: 512
+            response_length: 1024
+            skip_dump_dir: /tmp/rollout_dump
+            skip_rollout: false
+            temperature: 1
+            tensor_model_parallel_size: 1
+            top_k: -1
+            top_p: 1
+            trace:
+                _target_: verl.workers.config.TraceConfig
+                backend: null
+                token2text: false
+            update_weights_bucket_megabytes: 512
+            val_kwargs:
+                _target_: verl.workers.config.SamplingConfig
+                do_sample: false
+                "n": 1
+                temperature: 0
+                top_k: -1
+                top_p: 1
+algorithm:
+    value:
+        _target_: verl.trainer.config.AlgoConfig
+        adv_estimator: grpo
+        gamma: 1
+        kl_ctrl:
+            _target_: verl.trainer.config.KLControlConfig
+            horizon: 10000
+            kl_coef: 0.001
+            target_kl: 0.1
+            type: fixed
+        kl_penalty: kl
+        lam: 1
+        norm_adv_by_std_in_grpo: true
+        pf_ppo:
+            reweight_method: pow
+            weight_pow: 2
+        use_kl_in_reward: false
+        use_pf_ppo: false
+critic:
+    value:
+        _target_: verl.workers.config.FSDPCriticConfig
+        checkpoint:
+            _target_: verl.trainer.config.CheckpointConfig
+            async_save: false
+            load_contents:
+                - model
+                - optimizer
+                - extra
+            save_contents:
+                - model
+                - optimizer
+                - extra
+        cliprange_value: 0.5
+        enable: null
+        forward_max_token_len_per_gpu: 32768
+        forward_micro_batch_size: null
+        forward_micro_batch_size_per_gpu: null
+        grad_clip: 1
+        loss_agg_mode: token-mean
+        model:
+            _target_: verl.workers.config.FSDPCriticModelCfg
+            enable_activation_offload: false
+            enable_gradient_checkpointing: true
+            external_lib: null
+            fsdp_config:
+                _target_: verl.workers.config.FSDPEngineConfig
+                forward_prefetch: false
+                fsdp_size: -1
+                offload_policy: false
+                optimizer_offload: false
+                param_offload: false
+                reshard_after_forward: true
+                wrap_policy:
+                    min_num_params: 0
+            lora_alpha: 16
+            lora_rank: 0
+            path: ~/models/deepseek-llm-7b-chat
+            target_modules: all-linear
+            tokenizer_path: Qwen/Qwen3-1.7B
+            trust_remote_code: false
+            use_remove_padding: false
+            use_shm: false
+        optim:
+            _target_: verl.workers.config.FSDPOptimizerConfig
+            lr: 1e-05
+            lr_warmup_steps: -1
+            lr_warmup_steps_ratio: 0
+            min_lr_ratio: null
+            total_training_steps: 105
+            warmup_style: constant
+            weight_decay: 0.01
+        ppo_epochs: 1
+        ppo_max_token_len_per_gpu: 32768
+        ppo_micro_batch_size: null
+        ppo_micro_batch_size_per_gpu: null
+        ppo_mini_batch_size: 80
+        profiler:
+            _target_: verl.utils.profiler.ProfilerConfig
+            all_ranks: false
+            enable: false
+            ranks: []
+            save_path: outputs/profile
+            tool: null
+            tool_config:
+                npu:
+                    _target_: verl.utils.profiler.config.NPUToolConfig
+                    analysis: true
+                    contents: []
+                    discrete: false
+                    level: level1
+                nsys:
+                    _target_: verl.utils.profiler.config.NsightToolConfig
+                    discrete: false
+                torch:
+                    _target_: verl.utils.profiler.config.TorchProfilerToolConfig
+                    step_end: null
+                    step_start: 0
+        rollout_n: 3
+        shuffle: false
+        strategy: fsdp
+        ulysses_sequence_parallel_size: 1
+        use_dynamic_bsz: false
+custom_reward_function:
+    value:
+        name: compute_score
+        path: null
+data:
+    value:
+        custom_cls:
+            name: null
+            path: null
+        datagen:
+            name: null
+            path: null
+        dataloader_num_workers: 8
+        filter_overlong_prompts: true
+        filter_overlong_prompts_workers: 1
+        image_key: images
+        max_prompt_length: 512
+        max_response_length: 1024
+        prompt_key: prompt
+        return_full_prompt: false
+        return_multi_modal_inputs: true
+        return_raw_chat: false
+        return_raw_input_ids: false
+        reward_fn_key: data_source
+        sampler:
+            class_name: null
+            class_path: null
+        shuffle: true
+        tokenizer: null
+        train_batch_size: 1024
+        train_files: /home/wenyang/data/gsm8k/train.parquet
+        truncation: error
+        trust_remote_code: false
+        use_shm: false
+        val_batch_size: null
+        val_files: /home/wenyang/data/gsm8k/test.parquet
+        validation_shuffle: false
+        video_key: videos
+global_profiler:
+    value:
+        _target_: verl.utils.profiler.ProfilerConfig
+        global_tool_config:
+            nsys:
+                _target_: verl.utils.profiler.config.NsightToolConfig
+                controller_nsight_options:
+                    cuda-graph-trace: graph
+                    cuda-memory-usage: "true"
+                    trace: cuda,nvtx,cublas,ucx
+                discrete: false
+                worker_nsight_options:
+                    capture-range: cudaProfilerApi
+                    capture-range-end: null
+                    cuda-graph-trace: graph
+                    cuda-memory-usage: "true"
+                    kill: none
+                    trace: cuda,nvtx,cublas,ucx
+        profile_continuous_steps: false
+        save_path: outputs/profile
+        steps: null
+        tool: null
+ray_kwargs:
+    value:
+        ray_init:
+            num_cpus: null
+        timeline_json_file: null
+reward_model:
+    value:
+        enable: false
+        forward_max_token_len_per_gpu: 32768
+        launch_reward_fn_async: false
+        max_length: null
+        micro_batch_size: null
+        micro_batch_size_per_gpu: null
+        model:
+            external_lib: null
+            fsdp_config:
+                _target_: verl.workers.config.FSDPEngineConfig
+                forward_prefetch: false
+                fsdp_size: -1
+                param_offload: false
+                reshard_after_forward: true
+                wrap_policy:
+                    min_num_params: 0
+            input_tokenizer: Qwen/Qwen3-1.7B
+            path: ~/models/FsfairX-LLaMA3-RM-v0.1
+            trust_remote_code: false
+            use_fused_kernels: false
+            use_remove_padding: false
+            use_shm: false
+        profiler:
+            _target_: verl.utils.profiler.ProfilerConfig
+            all_ranks: false
+            enable: false
+            ranks: []
+            save_path: outputs/profile
+            tool: null
+            tool_config:
+                npu:
+                    _target_: verl.utils.profiler.config.NPUToolConfig
+                    analysis: true
+                    contents: []
+                    discrete: false
+                    level: level1
+                nsys:
+                    _target_: verl.utils.profiler.config.NsightToolConfig
+                    discrete: false
+                torch:
+                    _target_: verl.utils.profiler.config.TorchProfilerToolConfig
+                    step_end: null
+                    step_start: 0
+        reward_manager: naive
+        sandbox_fusion:
+            max_concurrent: 64
+            memory_limit_mb: 1024
+            url: null
+        strategy: fsdp
+        ulysses_sequence_parallel_size: 1
+        use_dynamic_bsz: false
+trainer:
+    value:
+        balance_batch: true
+        critic_warmup: 0
+        default_hdfs_dir: null
+        default_local_dir: checkpoints/verl_grpo_cdpo_gsm8k/qwen3_1_7b_grpo_baseline
+        del_local_ckpt_after_load: false
+        device: cuda
+        esi_redundant_time: 0
+        experiment_name: qwen3_1_7b_grpo_baseline
+        log_val_generations: 0
+        logger:
+            - console
+            - wandb
+        max_actor_ckpt_to_keep: null
+        max_critic_ckpt_to_keep: null
+        n_gpus_per_node: 2
+        nnodes: 1
+        project_name: verl_grpo_cdpo_gsm8k
+        ray_wait_register_center_timeout: 300
+        resume_from_path: null
+        resume_mode: auto
+        rollout_data_dir: null
+        save_freq: -1
+        test_freq: 5
+        total_epochs: 15
+        total_training_steps: null
+        use_legacy_worker_impl: auto
+        val_before_train: true
+        val_only: false
+        validation_data_dir: null

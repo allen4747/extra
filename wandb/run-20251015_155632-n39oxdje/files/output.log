@@ -1,0 +1,31 @@
+Checkpoint tracker file does not exist: /home/wenyang/RLTraining/checkpoints/verl_grpo_cdpo_gsm8k/qwen3_1_7b_cdpo_cosine/latest_checkpointed_iteration.txt
+Training from scratch
+test_gen_batch meta info: {'eos_token_id': 151645, 'pad_token_id': 151643, 'recompute_log_prob': False, 'do_sample': False, 'validate': True, 'global_steps': 0}
+validation generation end
+[prompt] user
+Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four. She sells the remainder at the farmers' market daily for $2 per fresh duck egg. How much in dollars does she make every day at the farmers' market? Let's think step by step and output the final answer after "####".
+assistant
+
+[response] <think>
+Okay, let's see. Janet has ducks that lay eggs. The problem says she has 16 eggs per day. Then she eats three for breakfast every morning. Wait, but does that mean she eats three eggs each morning? But the question is about how much she makes at the farmers' market. So maybe the three eggs she eats in the morning are not sold. Then she bakes muffins every day with four eggs. Hmm, but the muffins are made with four eggs? Or does that mean she uses four eggs per muffin? Wait, the problem says she bakes muffins for her friends every day with four. Maybe that's a typo? Or maybe it's saying she uses four eggs per muffin? But the problem is about how much she makes at the farmers' market. So the eggs she sells are the ones that are not used for breakfast or muffins. Let me parse this again.
+
+Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning. Wait, does that mean she eats three eggs each morning? But the problem says she eats three for breakfast every morning. So maybe she eats three eggs in the morning, but the rest are used for other purposes. Then she bakes muffins every day with four. Wait, maybe she uses four eggs for the muffins? But the problem says she bakes muffins for her friends every day with four. Maybe that's a typo, and it's supposed to say she uses four eggs per muffin? Or maybe she uses four eggs in total for the muffins? But the problem is about how much she makes at the farmers' market. So the eggs she sells are the ones that are not used for breakfast or muffins. So let's break it down.
+
+First, total eggs per day: 16.
+
+She eats three for breakfast every morning. But does that mean she eats three eggs each morning? If she eats three eggs in the morning, then the rest of the eggs are used for other purposes. But the problem says she eats three for breakfast every morning. So maybe she eats three eggs each morning, but the problem is about the daily total. Wait, maybe she eats three eggs in the morning, but that's just one morning? Or is it three eggs each day? The problem says "every morning" so maybe she eats three eggs each morning, but since she's doing this every morning, does that mean she eats three eggs each day? Or is it three eggs per day? Hmm, the wording is a bit unclear. Let me check again.
+
+Original problem: "Janet’s ducks lay 16 eggs per day. She eats three for breakfast every morning and bakes muffins for her friends every day with four." So "eats three for breakfast every morning" – so each morning, she eats three eggs. Since she does this every morning, but the problem is about daily totals. So if she eats three eggs each morning, and there are 24 hours in a day, but maybe she only eats three eggs in the morning? Wait, maybe the problem is that she eats three eggs in the morning, and then the rest of the day she uses the eggs for baking muffins? Or maybe she eats three eggs in the morning, and then uses the rest of the eggs for baking muffins? But the problem says she bakes muffins for her friends every day with four. Maybe that's a typo, and it's supposed to say she uses four eggs per muffin? Or maybe she uses four eggs in total for the muffins? But the problem is about how much she makes at the farmers' market. So the eggs she sells are the ones that are not used for breakfast or muffins.
+
+So let's assume that she eats three eggs in the morning, and then uses the remaining eggs for baking muffins. But the problem says she bakes muffins for her friends every day with four. Maybe that's a typo, and it's supposed to say she uses four eggs per muffin? Or maybe she uses four eggs in total for the muffins? But the problem is not clear. Alternatively, maybe she uses four eggs for the muffins, so she uses four eggs per day for the muffins. But then the total eggs she has is 16. If she eats three eggs in the morning, and uses four eggs for the muffins, then the remaining eggs would be 16 - 3 - 4 = 9. So she sells 9 eggs at the market for $2 per fresh duck egg. Therefore, she makes 9 * 2 = $18. But let me check again.
+
+Wait, the problem says she eats three for breakfast every morning. So if she eats three eggs each morning, but how many mornings are there in a day? If she eats three eggs every morning, then that's three eggs per day? But that would be 3 eggs per day. But the problem says she eats
+[ground_truth] 18
+[score] 0.0
+len reward_extra_infos_dict['reward']: 1319
+("Initial validation metrics: {'val-core/openai/gsm8k/reward/mean@1': "
+ '0.0037907505686125853}')
+step:0 - val-core/openai/gsm8k/reward/mean@1:0.0037907505686125853
+Training Progress:   0%|          | 0/70 [00:00<?, ?it/s]Ray debugger is listening on 172.28.181.68:49355
+Waiting for debugger to attach (see https://docs.ray.io/en/latest/ray-observability/ray-distributed-debugger.html)...
+Debugger client is connected
