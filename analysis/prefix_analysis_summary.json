@@ -1,0 +1,280 @@
+{
+  "config": {
+    "model_name": "Qwen/Qwen2.5-1.5B-Instruct",
+    "n_problems": 22,
+    "n_prefix_data_points": 600,
+    "n_continuations": 16,
+    "prefix_fractions": [
+      0.2,
+      0.4,
+      0.6,
+      0.8
+    ]
+  },
+  "correlations": {
+    "prefix_entropy_mean": {
+      "corr_pass_rate": -0.14086604914662562,
+      "p_pass_rate": 0.0005390249197403962,
+      "corr_binary": -0.12618985157939158,
+      "within_problem_corr": -0.22880533277756226,
+      "within_problem_p": 0.0016601399580053336,
+      "n_problems_used": 22
+    },
+    "prefix_entropy_std": {
+      "corr_pass_rate": -0.139567371302584,
+      "p_pass_rate": 0.0006072557493859592,
+      "corr_binary": -0.11523955388216371,
+      "within_problem_corr": -0.1431102350694163,
+      "within_problem_p": 0.06844010969315578,
+      "n_problems_used": 22
+    },
+    "ppl_gap_own_vs_gt": {
+      "corr_pass_rate": -0.08630749879214909,
+      "p_pass_rate": 0.03454688351675115,
+      "corr_binary": -0.05303934931646548,
+      "within_problem_corr": 0.09835275626400933,
+      "within_problem_p": 0.3306067616943864,
+      "n_problems_used": 22
+    },
+    "answer_entropy_std": {
+      "corr_pass_rate": -0.02681724344479006,
+      "p_pass_rate": 0.512059823789399,
+      "corr_binary": 0.04790097170218989,
+      "within_problem_corr": 0.09293158754918084,
+      "within_problem_p": 0.1223203719374365,
+      "n_problems_used": 22
+    },
+    "gt_logprob_min": {
+      "corr_pass_rate": 0.035705039475437725,
+      "p_pass_rate": 0.3826380826440229,
+      "corr_binary": -0.012518953798627329,
+      "within_problem_corr": -0.08282519780110315,
+      "within_problem_p": 0.1964893417447388,
+      "n_problems_used": 22
+    },
+    "layer_consistency": {
+      "corr_pass_rate": -0.04717979006376171,
+      "p_pass_rate": 0.24854247942421828,
+      "corr_binary": -0.07924181530681905,
+      "within_problem_corr": -0.07905988656308909,
+      "within_problem_p": 0.2821723385929106,
+      "n_problems_used": 22
+    },
+    "mutual_info_prefix_gt": {
+      "corr_pass_rate": -0.0036926736107387673,
+      "p_pass_rate": 0.9280779459020796,
+      "corr_binary": 0.028732886590804852,
+      "within_problem_corr": 0.07323629771183457,
+      "within_problem_p": 0.22966368975328455,
+      "n_problems_used": 22
+    },
+    "gt_entropy_conditional": {
+      "corr_pass_rate": -0.06158543242750521,
+      "p_pass_rate": 0.13185844366108976,
+      "corr_binary": -0.018369418214106602,
+      "within_problem_corr": -0.07323629771183457,
+      "within_problem_p": 0.22966368975328455,
+      "n_problems_used": 22
+    },
+    "gt_entropy_reduction": {
+      "corr_pass_rate": -0.0036926736107387673,
+      "p_pass_rate": 0.9280779459020796,
+      "corr_binary": 0.028732886590804852,
+      "within_problem_corr": 0.07323629771183457,
+      "within_problem_p": 0.22966368975328455,
+      "n_problems_used": 22
+    },
+    "top_k_gt_overlap": {
+      "corr_pass_rate": 0.07415787698501851,
+      "p_pass_rate": 0.06949293499320504,
+      "corr_binary": -0.036938630073027626,
+      "within_problem_corr": -0.06513611261292915,
+      "within_problem_p": 0.3624641665439843,
+      "n_problems_used": 22
+    },
+    "gt_frac_in_top10": {
+      "corr_pass_rate": -0.06686365312465538,
+      "p_pass_rate": 0.10179054542091943,
+      "corr_binary": -0.03742745153542225,
+      "within_problem_corr": 0.06078793175877028,
+      "within_problem_p": 0.37450714452167955,
+      "n_problems_used": 22
+    },
+    "answer_entropy_max": {
+      "corr_pass_rate": -0.02784182668857889,
+      "p_pass_rate": 0.4960660902000693,
+      "corr_binary": 0.04758347039378489,
+      "within_problem_corr": 0.05834203919025167,
+      "within_problem_p": 0.38161842337728824,
+      "n_problems_used": 22
+    },
+    "gt_logprob_sum": {
+      "corr_pass_rate": 0.16709064898189868,
+      "p_pass_rate": 3.900688522116295e-05,
+      "corr_binary": 0.04078996817639101,
+      "within_problem_corr": 0.05797248848914068,
+      "within_problem_p": 0.3762607093296748,
+      "n_problems_used": 22
+    },
+    "normalized_gt_logprob": {
+      "corr_pass_rate": -0.013389334750873222,
+      "p_pass_rate": 0.7434401410463038,
+      "corr_binary": -0.06092017659158931,
+      "within_problem_corr": -0.05797248848914068,
+      "within_problem_p": 0.3762607093296748,
+      "n_problems_used": 22
+    },
+    "pmi_prefix_gt": {
+      "corr_pass_rate": 0.04495624958735032,
+      "p_pass_rate": 0.271568221833058,
+      "corr_binary": 0.06029485931688147,
+      "within_problem_corr": 0.05797248848914068,
+      "within_problem_p": 0.3762607093296748,
+      "n_problems_used": 22
+    },
+    "gt_log_bayes_factor": {
+      "corr_pass_rate": 0.04495624958735032,
+      "p_pass_rate": 0.271568221833058,
+      "corr_binary": 0.06029485931688147,
+      "within_problem_corr": 0.05797248848914068,
+      "within_problem_p": 0.3762607093296748,
+      "n_problems_used": 22
+    },
+    "gt_logprob_mean": {
+      "corr_pass_rate": -0.022578567673318534,
+      "p_pass_rate": 0.5809642799672177,
+      "corr_binary": 0.03155232280304157,
+      "within_problem_corr": 0.057969840092880344,
+      "within_problem_p": 0.37632158588132114,
+      "n_problems_used": 22
+    },
+    "gt_answer_prob_geomean": {
+      "corr_pass_rate": -0.022578567673318534,
+      "p_pass_rate": 0.5809642799672177,
+      "corr_binary": 0.03155232280304157,
+      "within_problem_corr": 0.057969840092880344,
+      "within_problem_p": 0.37632158588132114,
+      "n_problems_used": 22
+    },
+    "cond_ppl_gt": {
+      "corr_pass_rate": 0.02263211067341545,
+      "p_pass_rate": 0.5800675510011395,
+      "corr_binary": -0.03158110709636871,
+      "within_problem_corr": -0.05747311851262659,
+      "within_problem_p": 0.3793601999930106,
+      "n_problems_used": 22
+    },
+    "relative_ppl": {
+      "corr_pass_rate": -0.028764076861338625,
+      "p_pass_rate": 0.4819003630823291,
+      "corr_binary": 0.042570023703331863,
+      "within_problem_corr": 0.05747311851262659,
+      "within_problem_p": 0.3793601999930106,
+      "n_problems_used": 22
+    },
+    "combined_neg_ppl_plus_sim": {
+      "corr_pass_rate": -0.022594222111022393,
+      "p_pass_rate": 0.5807020351914529,
+      "corr_binary": 0.03154261702068757,
+      "within_problem_corr": 0.05747311851262659,
+      "within_problem_p": 0.3793601999930106,
+      "n_problems_used": 22
+    },
+    "ppl_ratio": {
+      "corr_pass_rate": 0.0016021529845880783,
+      "p_pass_rate": 0.9687606239474861,
+      "corr_binary": -0.058062279164987435,
+      "within_problem_corr": -0.05747311851262659,
+      "within_problem_p": 0.3793601999930106,
+      "n_problems_used": 22
+    },
+    "logit_lens_answer_prob": {
+      "corr_pass_rate": -0.05474904323415529,
+      "p_pass_rate": 0.180479457851625,
+      "corr_binary": -0.03503486855728584,
+      "within_problem_corr": -0.0491176315299187,
+      "within_problem_p": 0.3436939106777467,
+      "n_problems_used": 22
+    },
+    "prefix_gt_alignment": {
+      "corr_pass_rate": -0.007145232409650312,
+      "p_pass_rate": 0.8613475967902214,
+      "corr_binary": -0.03159076559378934,
+      "within_problem_corr": 0.043579049362354474,
+      "within_problem_p": 0.4502430237480207,
+      "n_problems_used": 22
+    },
+    "gt_logprob_concentration": {
+      "corr_pass_rate": 0.05513554678650637,
+      "p_pass_rate": 0.17741749910579757,
+      "corr_binary": -0.010921559126209948,
+      "within_problem_corr": 0.025027311154026875,
+      "within_problem_p": 0.6354663398544399,
+      "n_problems_used": 22
+    },
+    "ppl_to_own_answer": {
+      "corr_pass_rate": -0.03440911761980489,
+      "p_pass_rate": 0.4001578561625977,
+      "corr_binary": -0.05136500242944585,
+      "within_problem_corr": 0.022375400069770658,
+      "within_problem_p": 0.7738523259898125,
+      "n_problems_used": 22
+    },
+    "semantic_sim_gt": {
+      "corr_pass_rate": 0.09986971249224325,
+      "p_pass_rate": 0.014392376082193362,
+      "corr_binary": -0.0046284357148353595,
+      "within_problem_corr": -0.01069018641075659,
+      "within_problem_p": 0.8938737204239897,
+      "n_problems_used": 22
+    },
+    "gt_rank_max": {
+      "corr_pass_rate": -0.09828932266343228,
+      "p_pass_rate": 0.01602260162617338,
+      "corr_binary": -0.024758770067223327,
+      "within_problem_corr": 0.01019192726787482,
+      "within_problem_p": 0.8604623016759175,
+      "n_problems_used": 22
+    },
+    "prefix_entropy_max": {
+      "corr_pass_rate": -0.09450846333382758,
+      "p_pass_rate": 0.02059477383769698,
+      "corr_binary": -0.036037065118712325,
+      "within_problem_corr": -0.0019379726827176435,
+      "within_problem_p": 0.9797753438842829,
+      "n_problems_used": 22
+    },
+    "gt_rank_mean": {
+      "corr_pass_rate": -0.07796968086810778,
+      "p_pass_rate": 0.05629006359437442,
+      "corr_binary": -0.04023176557511047,
+      "within_problem_corr": -0.0018123672764631263,
+      "within_problem_p": 0.9754673462403887,
+      "n_problems_used": 22
+    },
+    "answer_entropy_mean": {
+      "corr_pass_rate": -0.02203060527367334,
+      "p_pass_rate": 0.5901784436190716,
+      "corr_binary": 0.014424183708302583,
+      "within_problem_corr": -0.0010474791921285863,
+      "within_problem_p": 0.9880801313829228,
+      "n_problems_used": 22
+    },
+    "uncond_ppl": {
+      "corr_pass_rate": -0.01193881527517235,
+      "p_pass_rate": 0.7704084847779584,
+      "corr_binary": 0.0,
+      "within_problem_corr": 0.0,
+      "within_problem_p": 1.0,
+      "n_problems_used": 0
+    },
+    "gt_entropy_unconditional": {
+      "corr_pass_rate": -0.16785299175422558,
+      "p_pass_rate": 3.59117650095547e-05,
+      "corr_binary": 0.0,
+      "within_problem_corr": 0.0,
+      "within_problem_p": 1.0,
+      "n_problems_used": 0
+    }
+  }
+}

@@ -1,2 +1,68 @@
-*.whl.1
+# Wheels / binaries
 *.whl
+*.whl.1
+
+# Large data files
+*.pkl
+*.safetensors
+*.bin
+*.pt
+
+# Checkpoints
+verl/checkpoints/
+verl/**/checkpoints/
+/external1/
+
+# Wandb
+wandb/
+**/wandb/
+
+# Eval model caches (HF format exports)
+analysis/eval_results/*_hf/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+*.egg
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude
+.claude/
+
+# Outputs (old RL experiments)
+outputs/
+_plots/
+plots/
+
+# Misc legacy files
+=
+breakout.py
+pendulum.py
+run_pendulum.py
+run.sh
+adap_alloc.py
+adap_alloc.sh
+
+# analysis/ — exclude copied frameworks, keep only our scripts and figures
+analysis/openrlhf/
+analysis/dockerfile/
+analysis/docs/
+analysis/dataset/
+analysis/examples/
+analysis/run_outputs/
+analysis/simplified_evaluator/
+analysis/LICENSE
+analysis/CONTRIBUTING.md
+analysis/README*.md
+analysis/pyproject.toml
+analysis/setup.py
+analysis/requirements.txt
+analysis/version.txt
+analysis/eval_results/*_responses.json
