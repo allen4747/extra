@@ -1,0 +1,66 @@
+[
+    {
+        "hyperparameters": {
+            "temperature": "1.0",
+            "top_p": "1.0",
+            "n": "16",
+            "max_tokens": "8192",
+            "task_name": "aime24"
+        },
+        "mean_score": 0.014583333333333334,
+        "distinct_4gram": 0.7750404090844243,
+        "best_score": 0.13333333333333333,
+        "solve_none": 26,
+        "solve_all": 0,
+        "avg_output_length": 0.0,
+        "format_error_rollouts": 1
+    },
+    {
+        "hyperparameters": {
+            "temperature": "1.0",
+            "top_p": "1.0",
+            "n": "16",
+            "max_tokens": "8192",
+            "task_name": "aime25"
+        },
+        "mean_score": 0.00625,
+        "distinct_4gram": 0.8189060879546821,
+        "best_score": 0.03333333333333333,
+        "solve_none": 29,
+        "solve_all": 0,
+        "avg_output_length": 0.0,
+        "format_error_rollouts": 1
+    },
+    {
+        "hyperparameters": {
+            "temperature": "1.0",
+            "top_p": "1.0",
+            "n": "16",
+            "max_tokens": "8192",
+            "task_name": "amc23"
+        },
+        "mean_score": 0.2765625,
+        "distinct_4gram": 0.7309828865473967,
+        "best_score": 0.6,
+        "solve_none": 16,
+        "solve_all": 2,
+        "avg_output_length": 0.0,
+        "format_error_rollouts": 0
+    },
+    {
+        "hyperparameters": {
+            "temperature": "1.0",
+            "top_p": "1.0",
+            "n": "16",
+            "max_tokens": "8192",
+            "task_name": "math-500"
+        },
+        "mean_score": 0.5195,
+        "distinct_4gram": 0.627094165708796,
+        "best_score": 0.838,
+        "solve_none": 81,
+        "solve_all": 91,
+        "avg_output_length": 0.0,
+        "format_error_rollouts": 15
+    }
+]

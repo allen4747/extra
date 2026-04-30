@@ -9,6 +9,7 @@
 *.pt
 
 # Checkpoints
+checkpoints/
 verl/checkpoints/
 verl/**/checkpoints/
 /external1/
@@ -19,6 +20,9 @@ wandb/
 
 # Eval model caches (HF format exports)
 analysis/eval_results/*_hf/
+
+# Large eval output (exceeds GitHub 100MB limit)
+eval_outputs/ExTra-JustRL-Nemotron-1.5B_step_300/math-500_t1.0_p1.0_n16-MNT8192.jsonl
 
 # Python
 __pycache__/
