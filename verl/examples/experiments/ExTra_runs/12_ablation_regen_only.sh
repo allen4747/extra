@@ -133,6 +133,7 @@ python3 -m verl.trainer.main_ppo \
   +reward_model.reward_kwargs.overlong_buffer_cfg.enable=False \
   +reward_model.reward_kwargs.overlong_buffer_cfg.len=4096 \
   +reward_model.reward_kwargs.overlong_buffer_cfg.penalty_factor=1.0 \
+  +reward_model.reward_kwargs.max_resp_len=8192 \
   trainer.critic_warmup=0 \
   trainer.logger='["console", "wandb"]' \
   trainer.project_name='ExTra_Research' \

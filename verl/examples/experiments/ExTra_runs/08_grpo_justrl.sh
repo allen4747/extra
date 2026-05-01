@@ -2,35 +2,35 @@
 
 export RAY_TMPDIR=/external1/wenyang/ray_tmp
 
-# Auto-detect a free GPU (< 2GB used), or fall back to GPU 6
-find_free_gpu() {
-    for i in {0..7}; do
-        used=$(nvidia-smi -i "$i" --query-gpu=memory.used --format=csv,noheader,nounits)
-        if [ "$used" -lt 2000 ]; then
-            echo "$i"
-            return 0
-        fi
-    done
-    return 1
-}
+# # Auto-detect a free GPU (< 2GB used), or fall back to GPU 6
+# find_free_gpu() {
+#     for i in {0..7}; do
+#         used=$(nvidia-smi -i "$i" --query-gpu=memory.used --format=csv,noheader,nounits)
+#         if [ "$used" -lt 2000 ]; then
+#             echo "$i"
+#             return 0
+#         fi
+#     done
+#     return 1
+# }
 
-echo "Looking for a free GPU..."
-while true; do
-    FREE_GPU=$(find_free_gpu)
-    if [ $? -eq 0 ]; then
-        echo "Found free GPU $FREE_GPU, starting training."
-        break
-    fi
-    echo "No free GPU available. Retrying in 90s..."
-    sleep 90
-done
+# echo "Looking for a free GPU..."
+# while true; do
+#     FREE_GPU=$(find_free_gpu)
+#     if [ $? -eq 0 ]; then
+#         echo "Found free GPU $FREE_GPU, starting training."
+#         break
+#     fi
+#     echo "No free GPU available. Retrying in 90s..."
+#     sleep 90
+# done
 
-export CUDA_VISIBLE_DEVICES=$FREE_GPU
+export CUDA_VISIBLE_DEVICES=2,3
 
 MODEL_PATH="${MODEL_PATH:-Qwen/Qwen2.5-1.5B-Instruct}"
 TRAIN_FILE="${TRAIN_FILE:-$HOME/data/math_dapo/train.parquet}"
 VAL_FILE="${VAL_FILE:-$HOME/data/math500/test.parquet}"
-EXP_NAME="GRPO-JustRL-Qwen2.5-1.5B"
+EXP_NAME="GRPO-JustRL-Qwen2.5-1.5B-Revised"
 
 python3 -m verl.trainer.main_ppo \
   algorithm.adv_estimator=grpo \
@@ -58,7 +58,7 @@ python3 -m verl.trainer.main_ppo \
   actor_rollout_ref.actor.optim.lr_warmup_steps=10 \
   actor_rollout_ref.actor.optim.weight_decay=0.1 \
   actor_rollout_ref.actor.ppo_mini_batch_size=64 \
-  actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=4 \
+  actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=16 \
   actor_rollout_ref.actor.use_kl_loss=False \
   actor_rollout_ref.actor.kl_loss_coef=0 \
   actor_rollout_ref.actor.kl_loss_type=low_var_kl \
@@ -79,23 +79,24 @@ python3 -m verl.trainer.main_ppo \
   actor_rollout_ref.rollout.val_kwargs.n=8 \
   actor_rollout_ref.rollout.val_kwargs.temperature=0.7 \
   actor_rollout_ref.rollout.val_kwargs.top_p=0.9 \
-  actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4 \
-  actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4 \
+  actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=16 \
+  actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=16 \
   actor_rollout_ref.ref.fsdp_config.param_offload=True \
   reward_model.reward_manager=dapo \
   +reward_model.reward_kwargs.overlong_buffer_cfg.enable=False \
   +reward_model.reward_kwargs.overlong_buffer_cfg.len=4096 \
   +reward_model.reward_kwargs.overlong_buffer_cfg.penalty_factor=1.0 \
+  +reward_model.reward_kwargs.max_resp_len=8192 \
   trainer.critic_warmup=0 \
   trainer.logger='["console", "wandb"]' \
   trainer.project_name='ExTra_Research' \
   trainer.experiment_name="$EXP_NAME" \
-  trainer.n_gpus_per_node=1 \
+  trainer.n_gpus_per_node=2 \
   trainer.nnodes=1 \
   trainer.save_freq=50 \
   trainer.save_start_step=100 \
   trainer.test_freq=10 \
   trainer.total_training_steps=300 \
   trainer.default_local_dir="/external1/wenyang/checkpoints/ExTra_Research/$EXP_NAME" \
-  trainer.val_before_train=True \
+  trainer.val_before_train=False \
   "$@"
