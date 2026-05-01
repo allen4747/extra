@@ -33,10 +33,10 @@ export HF_HUB_CACHE="/home/wenyang/my_efs/models"
 export CUDA_VISIBLE_DEVICES=4,5,6,7
 # export CUDA_VISIBLE_DEVICES=$FREE_GPUS
 
-MODEL_PATH="${MODEL_PATH:-/home/wenyang/my_efs/models/models--Qwen--Qwen2.5-7B-Instruct/snapshots/a09a35458c702b33eeacc393d103063234e8bc28}"
+MODEL_PATH="${MODEL_PATH:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"
 TRAIN_FILE="${TRAIN_FILE:-$HOME/data/math_dapo/train.parquet}"
 VAL_FILE="${VAL_FILE:-$HOME/data/math500/test.parquet}"
-EXP_NAME="ExTra-JustRL-Qwen2.5-7B-LoRA"
+EXP_NAME="ExTra-JustRL-R1Distill-7B-LoRA"
 
 python3 -m verl.trainer.main_ppo \
   algorithm.adv_estimator=grpo \
