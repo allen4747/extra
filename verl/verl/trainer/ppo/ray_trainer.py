@@ -1976,6 +1976,10 @@ class RayPPOTrainer:
                 # this is experimental and may be changed/removed in the future in favor of a general-purpose one
                 if isinstance(self.train_dataloader.sampler, AbstractCurriculumSampler):
                     self.train_dataloader.sampler.update(batch=batch)
+                    if hasattr(self.train_dataloader.sampler, 'weights'):
+                        n_easy = (self.train_dataloader.sampler.weights < 0.5).sum().item()
+                        metrics["curriculum/n_easy_downweighted"] = n_easy
+                        metrics["curriculum/pct_active"] = 1.0 - n_easy / len(self.train_dataloader.sampler.weights)
 
                 # TODO: make a canonical logger that supports various backend
                 logger.log(data=metrics, step=self.global_steps)

@@ -113,3 +113,71 @@ class ProbabilisticCurriculumSampler(AbstractCurriculumSampler):
     def load_state_dict(self, state_dict):
         self.weights = state_dict["weights"]
         self.generator.set_state(state_dict["rng_state"])
+
+
+class PassRateCurriculumSampler(AbstractCurriculumSampler):
+    """Downweight easy problems based on observed pass rates.
+
+    Problems with pass_rate >= (n-1)/n are considered "easy" and get their
+    sampling weight reduced to `easy_weight` (default 0.1). This creates a
+    natural curriculum where the model spends most of its compute on problems
+    it can still learn from, while occasionally revisiting easy ones to
+    prevent forgetting.
+    """
+
+    def __init__(self, data_source: Sized, data_config: DictConfig):
+        self.data_source = data_source
+        self.num_samples = len(data_source)
+        self.weights = torch.ones(self.num_samples, dtype=torch.float32)
+        self.generator = torch.Generator()
+        self.generator.manual_seed(data_config.get("seed", 1))
+        self.replacement = True
+        n_rollout = data_config.get("sampler_n_rollout", 8)
+        self.easy_threshold = (n_rollout - 1) / n_rollout
+        self.easy_weight = data_config.get("sampler_easy_weight", 0.1)
+        self.pass_rate_ema = torch.ones(self.num_samples, dtype=torch.float32) * 0.5
+        self.ema_alpha = data_config.get("sampler_ema_alpha", 0.3)
+
+    def __iter__(self):
+        rand_tensor = torch.multinomial(
+            self.weights, self.num_samples, self.replacement, generator=self.generator
+        )
+        yield from iter(rand_tensor.tolist())
+
+    def __len__(self):
+        return self.num_samples
+
+    def update(self, batch: DataProto) -> None:
+        if "dataset_index" not in batch.non_tensor_batch:
+            return
+        indices = batch.non_tensor_batch["dataset_index"]
+        scores = batch.batch["token_level_scores"].sum(dim=-1).cpu()
+
+        from collections import defaultdict
+        index_scores = defaultdict(list)
+        for idx, score in zip(indices, scores.tolist()):
+            index_scores[int(idx)].append(1.0 if score > 0 else 0.0)
+
+        for idx, passes in index_scores.items():
+            if idx >= self.num_samples:
+                continue
+            pass_rate = sum(passes) / len(passes)
+            self.pass_rate_ema[idx] = (
+                (1 - self.ema_alpha) * self.pass_rate_ema[idx] + self.ema_alpha * pass_rate
+            )
+            if self.pass_rate_ema[idx] >= self.easy_threshold:
+                self.weights[idx] = self.easy_weight
+            else:
+                self.weights[idx] = 1.0
+
+    def state_dict(self):
+        return {
+            "weights": self.weights,
+            "pass_rate_ema": self.pass_rate_ema,
+            "rng_state": self.generator.get_state(),
+        }
+
+    def load_state_dict(self, state_dict):
+        self.weights = state_dict["weights"]
+        self.pass_rate_ema = state_dict["pass_rate_ema"]
+        self.generator.set_state(state_dict["rng_state"])
