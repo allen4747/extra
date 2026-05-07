@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ExTra-Full (curiosity + guided resampling) on R1-Distill-Qwen-1.5B — full JustRL recipe, 4 GPUs.
 
-export CUDA_VISIBLE_DEVICES=0,1,2,3
+export CUDA_VISIBLE_DEVICES=1,2,3,4
 
 MODEL_PATH="${MODEL_PATH:-deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B}"
 TRAIN_FILE="${TRAIN_FILE:-$HOME/data/math_dapo/train.parquet}"
@@ -38,14 +38,14 @@ python3 -m verl.trainer.main_ppo \
   actor_rollout_ref.actor.entropy_coeff=0 \
   actor_rollout_ref.actor.grad_clip=1.0 \
   actor_rollout_ref.actor.use_dynamic_bsz=True \
-  actor_rollout_ref.actor.ppo_max_token_len_per_gpu=131072 \
+  actor_rollout_ref.actor.ppo_max_token_len_per_gpu=65536 \
   actor_rollout_ref.actor.use_kl_loss=False \
   actor_rollout_ref.actor.kl_loss_coef=0.0 \
   actor_rollout_ref.actor.clip_ratio_low=0.2 \
   actor_rollout_ref.actor.clip_ratio_high=0.28 \
   actor_rollout_ref.actor.clip_ratio_c=10.0 \
   actor_rollout_ref.actor.ulysses_sequence_parallel_size=1 \
-  actor_rollout_ref.model.enable_gradient_checkpointing=False \
+  actor_rollout_ref.model.enable_gradient_checkpointing=True \
   actor_rollout_ref.actor.fsdp_config.param_offload=False \
   actor_rollout_ref.actor.fsdp_config.optimizer_offload=False \
   actor_rollout_ref.rollout.tensor_model_parallel_size=1 \
@@ -53,10 +53,11 @@ python3 -m verl.trainer.main_ppo \
   actor_rollout_ref.rollout.name=vllm \
   actor_rollout_ref.rollout.temperature=1.0 \
   actor_rollout_ref.rollout.n=8 \
-  actor_rollout_ref.rollout.val_kwargs.do_sample=False \
-  actor_rollout_ref.rollout.val_kwargs.n=1 \
-  actor_rollout_ref.rollout.val_kwargs.temperature=0 \
-  actor_rollout_ref.rollout.val_kwargs.top_p=1.0 \
+  actor_rollout_ref.rollout.val_kwargs.do_sample=True \
+  +actor_rollout_ref.rollout.val_kwargs.max_new_tokens=31744 \
+  actor_rollout_ref.rollout.val_kwargs.n=32 \
+  actor_rollout_ref.rollout.val_kwargs.temperature=0.7 \
+  actor_rollout_ref.rollout.val_kwargs.top_p=0.9 \
   actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=4 \
   actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=4 \
   actor_rollout_ref.rollout.gpu_memory_utilization=0.9 \

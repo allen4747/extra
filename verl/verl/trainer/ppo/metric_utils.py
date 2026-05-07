@@ -15,6 +15,7 @@
 Metrics related to the PPO trainer.
 """
 
+import re
 from collections import defaultdict
 from functools import partial
 from typing import Any, Callable
@@ -554,3 +555,100 @@ def process_thoughts(resp):
         result = merge_steps(result)
 
     return result
+
+
+# Patterns that signal a new reasoning "step" in R1-style thinking blocks
+_REASONING_STEP_PATTERNS = re.compile(
+    r"^("
+    r"(Step\s+\d+)"              # "Step 1", "Step 2", ...
+    r"|(\d+[\.\)]\s)"            # "1. ", "2) ", ...
+    r"|(Wait[,.])"               # "Wait," "Wait."
+    r"|(Hmm[,.])"                # "Hmm,"
+    r"|(Actually[,.])"           # "Actually,"
+    r"|(Let me)"                 # "Let me reconsider..."
+    r"|(Alternatively[,.])"      # "Alternatively,"
+    r"|(But )"                   # "But we need..."
+    r"|(So[, ])"                 # "So, ..." "So we..."
+    r"|(Now[,. ])"               # "Now," "Now let's..."
+    r"|(Therefore[,.])"          # "Therefore,"
+    r"|(However[,.])"            # "However,"
+    r"|(First[,.]|Second[,.]|Third[,.]|Finally[,.])"  # ordinal transitions
+    r"|(I need to)"              # "I need to..."
+    r"|(Let's)"                  # "Let's try..."
+    r"|(OK[,. ]|Okay[,. ])"     # "OK, so..."
+    r")",
+    re.IGNORECASE,
+)
+
+
+def process_thoughts_reasoning(resp, mode="paragraph"):
+    """Split a reasoning model response into steps, using only the <think> block.
+
+    For R1-style models that produce <think>...</think> followed by a final answer,
+    we only extract prefixes from the reasoning portion. The final answer is excluded.
+
+    Args:
+        resp: Full response text (may contain <think>...</think> tags).
+        mode: Split strategy for the thinking content.
+            - "line": Apply the original process_thoughts line-level splitting
+                      (good for fine-grained prefix candidates).
+            - "paragraph": Split at paragraph boundaries (double newlines) or
+                           recognized transition phrases (coarser, more semantically
+                           meaningful steps).
+
+    Returns a list of reasoning step strings (without <think> tags).
+    """
+    # Extract the thinking block content
+    think_match = re.search(r"<think>(.*?)</think>", resp, re.DOTALL)
+    if think_match:
+        thinking_text = think_match.group(1).strip()
+    else:
+        # No closing </think> yet — the entire response is still thinking
+        if "<think>" in resp:
+            thinking_text = resp.split("<think>", 1)[1].strip()
+        else:
+            # No think tags at all — fall back to original process_thoughts
+            return process_thoughts(resp)
+
+    if not thinking_text:
+        return []
+
+    # --- "line" mode: reuse original process_thoughts on the thinking content ---
+    if mode == "line":
+        return process_thoughts(thinking_text)
+
+    # --- "paragraph" mode: split at paragraph boundaries or transitions ---
+    paragraphs = re.split(r"\n\s*\n", thinking_text)
+    paragraphs = [p.strip() for p in paragraphs if p.strip()]
+
+    if 3 <= len(paragraphs) <= 15:
+        return paragraphs
+
+    # Too few paragraphs — try transition-based splitting
+    if len(paragraphs) < 3:
+        lines = [l.strip() for l in thinking_text.split("\n") if l.strip()]
+        steps = []
+        current_step = []
+
+        for line in lines:
+            if _REASONING_STEP_PATTERNS.match(line) and current_step:
+                steps.append("\n".join(current_step))
+                current_step = [line]
+            else:
+                current_step.append(line)
+
+        if current_step:
+            steps.append("\n".join(current_step))
+
+        if len(steps) >= 3:
+            if len(steps) > 15:
+                steps = merge_steps(steps)
+            return steps
+        # Fallback: single-newline split
+        paragraphs = [l.strip() for l in thinking_text.split("\n") if l.strip()]
+
+    # Too many paragraphs — merge them down
+    if len(paragraphs) > 15:
+        paragraphs = merge_steps(paragraphs)
+
+    return paragraphs

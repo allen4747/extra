@@ -55,6 +55,7 @@ from verl.trainer.ppo.metric_utils import (
     compute_timing_metrics,
     process_validation_metrics,
     process_thoughts,
+    process_thoughts_reasoning,
 )
 from verl.trainer.ppo.reward import compute_reward, compute_reward_async
 from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path, should_save_ckpt_esi
@@ -651,11 +652,23 @@ class RayPPOTrainer:
         # --- Phase 1: extract prefixes only from selected rollouts ---
         all_items: list[tuple[tuple[int, ...], list[int], float, str]] = []
 
+        is_reasoning = "<think>" in self.tokenizer.get_vocab()
+        reasoning_split_mode = str(self._cfg_get(
+            "algorithm.guided_resampling.reasoning_split_mode", "paragraph"
+        ))
+
         for pk, (idx, _) in prompt_best.items():
             valid_len = int(response_mask[idx].sum().item())
             response_ids = responses[idx][:valid_len]
-            response_text = self.tokenizer.decode(response_ids, skip_special_tokens=True)
-            steps = process_thoughts(response_text)
+
+            if is_reasoning:
+                # Decode keeping special tokens so we can detect <think>...</think>
+                response_text = self.tokenizer.decode(response_ids, skip_special_tokens=False)
+                steps = process_thoughts_reasoning(response_text, mode=reasoning_split_mode)
+            else:
+                response_text = self.tokenizer.decode(response_ids, skip_special_tokens=True)
+                steps = process_thoughts(response_text)
+
             if len(steps) == 0:
                 continue
 
@@ -663,7 +676,13 @@ class RayPPOTrainer:
             current_text = ""
             for step in prefix_steps:
                 current_text = f"{current_text}\n{step}" if current_text else step
-                prefix_ids = self.tokenizer.encode(current_text, add_special_tokens=False)
+                # For reasoning models, wrap prefix in <think> so the model
+                # continues in reasoning mode when this prefix is used for resampling
+                if is_reasoning:
+                    encode_text = "<think>\n" + current_text
+                else:
+                    encode_text = current_text
+                prefix_ids = self.tokenizer.encode(encode_text, add_special_tokens=False)
                 if len(prefix_ids) == 0:
                     continue
 
