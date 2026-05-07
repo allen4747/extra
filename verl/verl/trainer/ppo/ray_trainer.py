@@ -1782,7 +1782,11 @@ class RayPPOTrainer:
                                 for i in range(responses.shape[0]):
                                     valid_len = int(response_mask[i].sum().item())
                                     valid_ids = responses[i][:valid_len]
-                                    rollout_texts.append(self.tokenizer.decode(valid_ids, skip_special_tokens=True))
+                                    text = self.tokenizer.decode(valid_ids, skip_special_tokens=True)
+                                    # Use last 512 tokens for embedding — captures final reasoning + answer
+                                    # where trajectories actually diverge
+                                    tail_ids = valid_ids[-512:] if valid_len > 512 else valid_ids
+                                    rollout_texts.append(self.tokenizer.decode(tail_ids, skip_special_tokens=True))
 
                                 # Use fast external SentenceTransformer model
                                 with torch.no_grad():
