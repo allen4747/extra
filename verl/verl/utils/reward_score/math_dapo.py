@@ -214,6 +214,10 @@ def is_correct_strict_box(
     boxed_pred = last_boxed_only_string(pred)
     extracted_pred = remove_boxed(boxed_pred) if boxed_pred is not None else None
 
+    boxed_gt = last_boxed_only_string(gt)
+    if boxed_gt is not None: 
+        gt = remove_boxed(boxed_gt)
+
     return 1 if (extracted_pred == gt) else -1, extracted_pred
 
 
@@ -242,7 +246,7 @@ def verify(
 def compute_score(
     solution_str: str,
     ground_truth: str,
-    strict_box_verify: bool = False,
+    strict_box_verify: bool = True,
     pause_tokens_index: Optional[list[int]] = None,
 ) -> float:
     """Compute the reward score for a solution.

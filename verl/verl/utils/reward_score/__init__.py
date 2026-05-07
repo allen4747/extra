@@ -55,7 +55,7 @@ def default_compute_score(
 
         # from . import math_verify
         # res = math_verify.compute_score(solution_str, ground_truth)
-    elif data_source == "math_dapo" or data_source.startswith("aime") or data_source == "dapo_math":
+    elif data_source == "math_dapo" or data_source.lower().startswith("aime") or data_source == "dapo_math":
         from . import math_dapo
 
         res = math_dapo.compute_score(solution_str, ground_truth)

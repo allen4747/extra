@@ -62,7 +62,8 @@ def run_ppo(config) -> None:
         ray_init_kwargs = OmegaConf.create({**ray_init_kwargs, "runtime_env": runtime_env})
         print(f"ray init kwargs: {ray_init_kwargs}")
         ray.init(
-            _temp_dir='/external1/wenyang/ray_tmp',
+            # _temp_dir='/external1/wenyang/ray_tmp',
+            _temp_dir='/home/wenyang/my_efs/ray_tmp',
             **OmegaConf.to_container(ray_init_kwargs))
 
     # Create a remote instance of the TaskRunner class, and

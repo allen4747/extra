@@ -17,7 +17,7 @@ args = parser.parse_args()
 # --------------------------------------------------------------------------- #
 #                   Global constants / variables                              #
 # --------------------------------------------------------------------------- #
-DATA_DIR = "/home/wenyang/my_efs/datasets"
+DATA_DIR = os.environ.get("DATA_DIR", "/home/wenyang/my_efs/datasets")
 TASKS       = [
     {"name": "AIME24", "path": f"{DATA_DIR}/AIME24/test.parquet", "N": 16},
     {"name": "AIME25", "path": f"{DATA_DIR}/AIME25/test.parquet", "N": 16},
@@ -110,7 +110,12 @@ def worker_process(args_tuple):
 #                                   main                                      #
 # --------------------------------------------------------------------------- #
 def main():
-    available_workers = [0,1,2,3]
+    # Use GPU IDs from CUDA_VISIBLE_DEVICES if set, otherwise fall back to EVAL_WORKERS count
+    _cuda_devs = os.environ.get("CUDA_VISIBLE_DEVICES", "")
+    if _cuda_devs:
+        available_workers = [int(x) for x in _cuda_devs.split(",")]
+    else:
+        available_workers = list(range(int(os.environ.get("EVAL_WORKERS", "4"))))
     num_workers = len(available_workers)
     for task in TASKS:
         task_name = task["name"]

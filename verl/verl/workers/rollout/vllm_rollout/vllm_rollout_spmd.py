@@ -317,6 +317,7 @@ class vLLMRollout(BaseRollout):
                 "top_k": self.config.val_kwargs.top_k,
                 "top_p": self.config.val_kwargs.top_p,
                 "temperature": self.config.val_kwargs.temperature,
+                "max_tokens": self.config.val_kwargs.max_new_tokens or self.config.response_length,
                 "n": 1,  # if validate, already repeat in ray_trainer
             }
 
@@ -353,12 +354,17 @@ class vLLMRollout(BaseRollout):
                             curr_log_prob.append(logprob[response_ids[i]].logprob)
                         rollout_log_probs.append(curr_log_prob)
 
-            response = pad_2d_list_to_length(response, self.pad_token_id, max_length=self.config.response_length).to(
+            # Use val_kwargs.max_new_tokens for validation padding if set
+            if is_validate and self.config.val_kwargs.max_new_tokens:
+                padding_length = self.config.val_kwargs.max_new_tokens
+            else:
+                padding_length = self.config.response_length
+            response = pad_2d_list_to_length(response, self.pad_token_id, max_length=padding_length).to(
                 idx.device
             )
             if self.config.calculate_log_probs:
                 rollout_log_probs = pad_2d_list_to_length(
-                    rollout_log_probs, -1, max_length=self.config.response_length
+                    rollout_log_probs, -1, max_length=padding_length
                 ).to(idx.device)
                 rollout_log_probs = rollout_log_probs.to(torch.float32)
 

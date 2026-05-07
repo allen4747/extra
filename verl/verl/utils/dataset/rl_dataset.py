@@ -107,6 +107,7 @@ class RLHFDataset(Dataset):
         self.return_full_prompt = config.get("return_full_prompt", False)
         self.truncation = config.get("truncation", "error")
         self.filter_overlong_prompts = config.get("filter_overlong_prompts", True)
+        self.use_boxed_suffix_prompt = config.get("use_boxed_suffix_prompt", False)
         self.apply_chat_template_kwargs = config.get("apply_chat_template_kwargs", {})
 
         self.num_workers = config.get("filter_overlong_prompts_workers", max(1, os.cpu_count() // 4))
@@ -138,6 +139,19 @@ class RLHFDataset(Dataset):
 
         print(f"dataset len: {len(self.dataframe)}")
 
+        if self.use_boxed_suffix_prompt:
+            suffix_prompt = "\n\nPlease reason step by step, and put your final answer within \\boxed{}."
+            prompt_key = self.prompt_key
+            self.dataframe = self.dataframe.map(
+                lambda doc: {
+                    prompt_key: [{"role": "user", "content": doc[prompt_key][0]['content'] + suffix_prompt}],
+                    **{k: v for k, v in doc.items() if k != prompt_key}
+                },
+                num_proc=self.num_workers,
+                desc="Adding boxed suffix prompt",
+                keep_in_memory=True,
+            )
+        
         self.dataframe = self.maybe_filter_out_long_prompts(self.dataframe)
 
     def maybe_filter_out_long_prompts(self, dataframe: datasets.Dataset = None):
