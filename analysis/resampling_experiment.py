@@ -18,16 +18,15 @@ from simplified_evaluator.eval import parse_prediction
 
 # Add experiment directory to path for imports if needed
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "verl"))
+from verl.trainer.ppo.metric_utils import process_thoughts, process_thoughts_reasoning
 
-# Try experimental import or fallback
-try:
-    from openrlhf.trainer.ppo_utils.score import process_thoughts
-except ImportError:
-    def process_thoughts(resp):
-        lines = [line.strip() for line in resp.split('\n') if line.strip()]
-        return lines
+# ── Config ───────────────────────────────────────────────────────────────────
+MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+REASONING_SPLIT_MODE = "paragraph"  # "line" or "paragraph"
+MAX_TOKENS = 15360
 
-def load_models(model_name="Qwen/Qwen2.5-1.5B-Instruct"):
+def load_models(model_name=MODEL_NAME):
     print(f"Loading scoring model {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     # Load HF model for scoring (hidden states access)
@@ -41,15 +40,13 @@ def load_models(model_name="Qwen/Qwen2.5-1.5B-Instruct"):
     scoring_model.eval()
 
     print(f"Loading vLLM generation model {model_name}...")
-    # vLLM will use the remaining visible GPUs.
-    # With 4 visible GPUs and scoring model on cuda:0, we run vLLM on a single GPU (cuda:1).
-    # For a 1.5B model, a single GPU is sufficient.
     generation_llm = LLM(
         model=model_name,
         trust_remote_code=True,
         gpu_memory_utilization=0.8,
         dtype="float16",
         tensor_parallel_size=1,
+        max_model_len=MAX_TOKENS + 2048,
     )
     return scoring_model, tokenizer, generation_llm
 
@@ -81,16 +78,14 @@ def load_math_problems(n=None, target_levels=[5]):
     return problems
 
 def generate_responses(llm, tokenizer, prompt, n=5):
-    messages = [
-                {"role": "system", "content": "Please reason step by step, and put your final answer within \\boxed{}."},
-                {"role": "user", "content": prompt}
-            ]
+    content = prompt + "\n\nPlease reason step by step, and put your final answer within \\boxed{}."
+    messages = [{"role": "user", "content": content}]
     formatted_prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-    
+
     sampling_params = SamplingParams(
         temperature=0.7,
         top_p=0.9,
-        max_tokens=1024,
+        max_tokens=MAX_TOKENS,
         n=n
     )
     
@@ -109,7 +104,7 @@ def generate_from_prefix(llm, tokenizer, prefix, n=5):
     sampling_params = SamplingParams(
         temperature=0.7,
         top_p=0.9,
-        max_tokens=1024,
+        max_tokens=MAX_TOKENS,
         n=n
     )
     
@@ -244,12 +239,12 @@ def run_experiment():
 
         for resp in batch_a:
             # ans = extract_content_from_boxed(resp)
-            steps = process_thoughts(resp)
+            steps = process_thoughts_reasoning(resp, mode=REASONING_SPLIT_MODE)
             if not steps:
                 # If no steps, treat whole response as one step?
                 steps = [resp]
-            
-            current_context = formatted_prompt
+
+            current_context = formatted_prompt + "<think>\n"
             prefix_text = ""
             for step in steps[:-1]:  # Exclude last step to avoid overfitting
                 current_context += step + "\n"

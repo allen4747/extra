@@ -41,7 +41,8 @@ except ImportError:
 from simplified_evaluator.eval import parse_prediction
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from openrlhf.trainer.ppo_utils.score import process_thoughts
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "verl"))
+from verl.trainer.ppo.metric_utils import process_thoughts, process_thoughts_reasoning
 
 
 # ============================================================
@@ -49,24 +50,25 @@ from openrlhf.trainer.ppo_utils.score import process_thoughts
 # ============================================================
 @dataclass
 class Config:
-    model_name: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    model_name: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
     n_problems: int = 30           # Number of problems to use
     n_initial_samples: int = 32     # Initial trajectories per problem
     n_continuations: int = 16       # Continuations per prefix for value estimation
-    max_new_tokens_gen: int = 1024  # For initial generation
-    max_new_tokens_cont: int = 512  # For continuations (shorter, since prefix exists)
+    max_new_tokens_gen: int = 15360 # For initial generation
+    max_new_tokens_cont: int = 8192 # For continuations (shorter, since prefix exists)
     temperature: float = 0.7
     top_p: float = 0.9
     target_levels: list = field(default_factory=lambda: [3, 4])
     seed: int = 42
     # Which prefixes to evaluate (fraction of steps completed)
-    # e.g., [0.25, 0.5, 0.75] means after 25%, 50%, 75% of steps
     prefix_fractions: list = field(default_factory=lambda: [0.2, 0.4, 0.6, 0.8])
     save_dir: str = os.path.dirname(os.path.abspath(__file__))
     # vLLM settings
     use_vllm: bool = VLLM_AVAILABLE  # Auto-detect; set False to force HF
     vllm_tensor_parallel_size: int = 1
     vllm_gpu_memory_utilization: float = 0.9
+    # Reasoning model settings
+    reasoning_split_mode: str = "paragraph"  # "line" or "paragraph"
 
 
 # ============================================================
@@ -98,7 +100,7 @@ def load_vllm_model(model_name, config):
         model=model_name,
         tensor_parallel_size=config.vllm_tensor_parallel_size,
         dtype="half",
-        max_model_len=2048,
+        max_model_len=config.max_new_tokens_gen + 2048,
         gpu_memory_utilization=config.vllm_gpu_memory_utilization,
         seed=config.seed,
     )
@@ -128,10 +130,8 @@ def load_math_problems(target_levels, n=None):
 
 
 def format_prompt(tokenizer, problem_text):
-    messages = [
-        {"role": "system", "content": "Please reason step by step, and put your final answer within \\boxed{}."},
-        {"role": "user", "content": problem_text},
-    ]
+    content = problem_text + "\n\nPlease reason step by step, and put your final answer within \\boxed{}."
+    messages = [{"role": "user", "content": content}]
     return tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
 
@@ -217,7 +217,7 @@ def collect_valid_problems_vllm(llm, tokenizer, problems, config):
             
             parsed_responses = []
             for r, c in zip(responses, correctness):
-                steps = process_thoughts(r)
+                steps = process_thoughts_reasoning(r, mode=config.reasoning_split_mode)
                 if steps and isinstance(steps, list) and len(steps) >= 2:
                     parsed_responses.append({
                         "full_response": r,
@@ -271,7 +271,7 @@ def collect_valid_problems_hf(model, tokenizer, problems, config):
             # Parse steps for each response
             parsed_responses = []
             for r, c in zip(responses, correctness):
-                steps = process_thoughts(r)
+                steps = process_thoughts_reasoning(r, mode=config.reasoning_split_mode)
                 if steps and len(steps) >= 2:  # Need at least 2 steps for meaningful prefixes
                     parsed_responses.append({
                         "full_response": r,
@@ -300,7 +300,7 @@ def collect_valid_problems_hf(model, tokenizer, problems, config):
 # ============================================================
 def continue_from_prefix_hf(model, tokenizer, formatted_prompt, prefix_text, n_continuations, config):
     """Generate multiple continuations from a given prefix (HF fallback)."""
-    full_context = formatted_prompt + prefix_text
+    full_context = formatted_prompt + "<think>\n" + prefix_text
     inputs = tokenizer(full_context, return_tensors="pt").to(model.device)
     
     continuations = []
@@ -383,7 +383,7 @@ def _build_prefix_requests(collected_data, tokenizer, config):
                     "full_response": resp_data["full_response"],
                     "formatted_prompt": formatted_prompt,
                 })
-                prompts_for_generation.append(formatted_prompt + prefix_text)
+                prompts_for_generation.append(formatted_prompt + "<think>\n" + prefix_text)
     
     return all_requests, prompts_for_generation
 

@@ -11,11 +11,19 @@ import re
 from scipy.stats import spearmanr
 import pickle
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "verl"))
+from verl.trainer.ppo.metric_utils import process_thoughts, process_thoughts_reasoning
+
+# ── Config ───────────────────────────────────────────────────────────────────
+MODEL_NAME = "deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B"
+REASONING_SPLIT_MODE = "paragraph"  # "line" or "paragraph"
+MAX_NEW_TOKENS = 15360
+
 # --- SETUP & LOADING ---
 def get_device():
     return "cuda" if torch.cuda.is_available() else "cpu"
 
-def load_model(model_name="Qwen/Qwen2.5-0.5B-Instruct"):
+def load_model(model_name=MODEL_NAME):
     print(f"Loading model {model_name}...")
     tokenizer = AutoTokenizer.from_pretrained(model_name)
     model = AutoModelForCausalLM.from_pretrained(
@@ -39,9 +47,6 @@ def load_math_problems(n=None, target_levels=[4]):
             })
     print(f"Loaded {len(problems)} problems.")
     return problems
-
-def process_thoughts(resp):
-    return [line.strip() for line in resp.split('\n') if line.strip()]
 
 def extract_content_from_boxed(text):
     matches = re.findall(r'\\boxed\{(.*?)\}', text)
@@ -73,16 +78,17 @@ def compute_anchor_metrics(model, tokenizer, prompt, response, gold_solution):
     """
     Computes similarity of each step to the 'Gold Anchor' state.
     """
-    steps = process_thoughts(response)
+    steps = process_thoughts_reasoning(response, mode=REASONING_SPLIT_MODE)
     if not steps: return None
-    
+
     # 1. Compute Fixed Gold Anchor (The "Correct State of Mind")
-    # We use Prompt + Gold Solution to establish the target vector.
-    formatted_prompt = f"<|im_start|>{prompt}\n"
+    content = prompt + "\n\nPlease reason step by step, and put your final answer within \\boxed{}."
+    messages = [{"role": "user", "content": content}]
+    formatted_prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     gold_text = formatted_prompt + gold_solution
     anchor_embedding = get_last_hidden_state(model, tokenizer, gold_text)
-    
-    current_context = formatted_prompt
+
+    current_context = formatted_prompt + "<think>\n"
     traj_sim = []
     
     # 2. Compare trajectory steps to Anchor
@@ -122,13 +128,16 @@ def collect_and_evaluate(model, tokenizer, problems, target_n=20, n_samples=8):
         gt_full_sol = problem_data["solution"] # IMPORTANT: We need the full solution text
         
         try:
-            # Generate samples
+            # Generate samples with R1-Distill prompt format
             responses = []
-            inputs = tokenizer([f"<|im_start|>{prompt}\n"]*n_samples, return_tensors="pt").to(model.device)
+            content = prompt + "\n\nPlease reason step by step, and put your final answer within \\boxed{}."
+            messages = [{"role": "user", "content": content}]
+            formatted_prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+            inputs = tokenizer([formatted_prompt]*n_samples, return_tensors="pt", padding=True).to(model.device)
             with torch.no_grad():
-                out = model.generate(**inputs, max_new_tokens=512, do_sample=True, temperature=0.7)
+                out = model.generate(**inputs, max_new_tokens=MAX_NEW_TOKENS, do_sample=True, temperature=0.7)
             for seq in out:
-                responses.append(tokenizer.decode(seq[inputs.input_ids.shape[1]:], skip_special_tokens=True))
+                responses.append(tokenizer.decode(seq[inputs.input_ids.shape[1]:], skip_special_tokens=False))
         except RuntimeError: 
             torch.cuda.empty_cache()
             continue
