@@ -55,7 +55,6 @@ from verl.trainer.ppo.metric_utils import (
     compute_timing_metrics,
     process_validation_metrics,
     process_thoughts,
-    process_thoughts_reasoning,
 )
 from verl.trainer.ppo.reward import compute_reward, compute_reward_async
 from verl.utils.checkpoint.checkpoint_manager import find_latest_ckpt_path, should_save_ckpt_esi
@@ -652,23 +651,11 @@ class RayPPOTrainer:
         # --- Phase 1: extract prefixes only from selected rollouts ---
         all_items: list[tuple[tuple[int, ...], list[int], float, str]] = []
 
-        is_reasoning = "<think>" in self.tokenizer.get_vocab()
-        reasoning_split_mode = str(self._cfg_get(
-            "algorithm.guided_resampling.reasoning_split_mode", "paragraph"
-        ))
-
         for pk, (idx, _) in prompt_best.items():
             valid_len = int(response_mask[idx].sum().item())
             response_ids = responses[idx][:valid_len]
-
-            if is_reasoning:
-                # Decode keeping special tokens so we can detect <think>...</think>
-                response_text = self.tokenizer.decode(response_ids, skip_special_tokens=False)
-                steps = process_thoughts_reasoning(response_text, mode=reasoning_split_mode)
-            else:
-                response_text = self.tokenizer.decode(response_ids, skip_special_tokens=True)
-                steps = process_thoughts(response_text)
-
+            response_text = self.tokenizer.decode(response_ids, skip_special_tokens=True)
+            steps = process_thoughts(response_text)
             if len(steps) == 0:
                 continue
 
@@ -676,13 +663,7 @@ class RayPPOTrainer:
             current_text = ""
             for step in prefix_steps:
                 current_text = f"{current_text}\n{step}" if current_text else step
-                # For reasoning models, wrap prefix in <think> so the model
-                # continues in reasoning mode when this prefix is used for resampling
-                if is_reasoning:
-                    encode_text = "<think>\n" + current_text
-                else:
-                    encode_text = current_text
-                prefix_ids = self.tokenizer.encode(encode_text, add_special_tokens=False)
+                prefix_ids = self.tokenizer.encode(current_text, add_special_tokens=False)
                 if len(prefix_ids) == 0:
                     continue
 
@@ -744,6 +725,10 @@ class RayPPOTrainer:
         return hard
 
     def _enqueue_guided_prompts(self, hard_prompt_keys: list[tuple[int, ...]]) -> None:
+        warmup_steps = int(self._cfg_get("algorithm.guided_resampling.warmup_steps", 100))
+        if getattr(self, "global_steps", 0) <= warmup_steps:
+            return
+
         tau = float(self._cfg_get("algorithm.guided_resampling.tau", 0.1))
         for k in hard_prompt_keys:
             best = self.curiosity_memory.select_best_prefix(k, tau=tau)
@@ -1793,32 +1778,36 @@ class RayPPOTrainer:
                                 responses = batch.batch["responses"]
                                 response_mask = batch.batch["response_mask"]
                                 rollout_texts = []
-                                
+
                                 for i in range(responses.shape[0]):
                                     valid_len = int(response_mask[i].sum().item())
                                     valid_ids = responses[i][:valid_len]
                                     rollout_texts.append(self.tokenizer.decode(valid_ids, skip_special_tokens=True))
-                                
+
                                 # Use fast external SentenceTransformer model
                                 with torch.no_grad():
                                     rollout_embeddings = self.embedding_model.encode(
                                         rollout_texts, convert_to_tensor=True, batch_size=256,
                                     ).cpu()
-                                
+
                                 # We can reuse the entropys we already computed in 'old_log_prob' above
                                 entropy_mat = policy_entropys
-                                
-                                novelty_rewards = self.curiosity_memory.add_rollout_embeddings(prompt_keys, rollout_embeddings)
-                                
-                                # Apply State-Dependent (Prompt-Conditioned) Coefficient Modulation
-                                dynamic_scales = []
-                                for k in prompt_keys:
-                                    var_r = self.curiosity_memory.reward_variance_ema.get(k, 0.0)
-                                    gamma_x =  np.exp(-novelty_lambda * var_r)
-                                    dynamic_scales.append(gamma_x)
-                                
-                                dynamic_scales_tensor = torch.tensor(dynamic_scales, device=novelty_rewards.device, dtype=novelty_rewards.dtype)
-                                batch.batch["intrinsic_rewards"] = (novelty_rewards * dynamic_scales_tensor).to(batch.batch["token_level_scores"].device)
+
+                                if self.curiosity_enabled:
+                                    novelty_rewards = self.curiosity_memory.add_rollout_embeddings(prompt_keys, rollout_embeddings)
+
+                                    # Apply State-Dependent (Prompt-Conditioned) Coefficient Modulation
+                                    dynamic_scales = []
+                                    for k in prompt_keys:
+                                        var_r = self.curiosity_memory.reward_variance_ema.get(k, 0.0)
+                                        gamma_x =  np.exp(-novelty_lambda * var_r)
+                                        dynamic_scales.append(gamma_x)
+
+                                    dynamic_scales_tensor = torch.tensor(dynamic_scales, device=novelty_rewards.device, dtype=novelty_rewards.dtype)
+                                    batch.batch["intrinsic_rewards"] = (novelty_rewards * dynamic_scales_tensor).to(batch.batch["token_level_scores"].device)
+                                    metrics["exploration/novelty_reward_mean"] = float(
+                                        batch.batch["intrinsic_rewards"].mean().item()
+                                    )
 
                                 if self.guided_resampling_enabled:
                                     hard_keys = self._hard_prompt_keys(batch, reward_tensor)
@@ -1830,9 +1819,6 @@ class RayPPOTrainer:
                                         metrics["exploration/hard_passrate_threshold"] = 1.0 / max(
                                             int(self.config.actor_rollout_ref.rollout.n), 1
                                         )
-                                metrics["exploration/novelty_reward_mean"] = float(
-                                    batch.batch["intrinsic_rewards"].mean().item()
-                                )
 
                         # compute rewards. apply_kl_penalty if available
                         if self.config.algorithm.use_kl_in_reward:
