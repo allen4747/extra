@@ -618,104 +618,158 @@ class RayPPOTrainer:
         batch: DataProto,
         entropy_mat: torch.Tensor,
         hard_prompt_keys: list[tuple[int, ...]],
+        prompt_keys: list[tuple[int, ...]] = None,
     ) -> None:
         """Store prefixes only for hard prompts (0% pass rate), picking the
-        single lowest-entropy rollout per prompt to keep the workload small."""
+        single lowest-entropy rollout per prompt to keep the workload small.
+
+        Uses token-level newline detection to find prefix boundaries directly
+        in token-ID space, avoiding expensive tokenizer.encode() calls.
+        """
+        warmup_steps = int(self._cfg_get("algorithm.guided_resampling.warmup_steps", 100))
+        if getattr(self, "global_steps", 0) <= warmup_steps:
+            return
+
         if entropy_mat is None or len(hard_prompt_keys) == 0:
             return
 
         hard_set = set(hard_prompt_keys)
 
-        prompts = batch.batch["prompts"]
         responses = batch.batch["responses"]
         response_mask = batch.batch["response_mask"]
-        n_rollout = max(int(self.config.actor_rollout_ref.rollout.n), 1)
 
         # --- Phase 0: for each hard prompt, pick the 1 rollout with lowest
         #     mean entropy (most confident trajectory) ---
-        prompt_best: dict[tuple[int, ...], tuple[int, float]] = {}  # key -> (sample_idx, mean_ent)
-        for i in range(prompts.shape[0]):
-            pk = self._prompt_key(prompts[i])
-            if pk not in hard_set:
-                continue
-            valid_len = int(response_mask[i].sum().item())
-            if valid_len <= 0:
-                continue
-            mean_ent = float(entropy_mat[i, :valid_len].mean().item())
-            if pk not in prompt_best or mean_ent < prompt_best[pk][1]:
-                prompt_best[pk] = (i, mean_ent)
+        prompt_best: dict[tuple[int, ...], tuple[int, float]] = {}
+        if prompt_keys is not None:
+            for i, pk in enumerate(prompt_keys):
+                if pk not in hard_set:
+                    continue
+                valid_len = int(response_mask[i].sum().item())
+                if valid_len <= 0:
+                    continue
+                mean_ent = float(entropy_mat[i, :valid_len].mean().item())
+                if pk not in prompt_best or mean_ent < prompt_best[pk][1]:
+                    prompt_best[pk] = (i, mean_ent)
+        else:
+            prompts = batch.batch["prompts"]
+            for i in range(prompts.shape[0]):
+                pk = self._prompt_key(prompts[i])
+                if pk not in hard_set:
+                    continue
+                valid_len = int(response_mask[i].sum().item())
+                if valid_len <= 0:
+                    continue
+                mean_ent = float(entropy_mat[i, :valid_len].mean().item())
+                if pk not in prompt_best or mean_ent < prompt_best[pk][1]:
+                    prompt_best[pk] = (i, mean_ent)
 
         if len(prompt_best) == 0:
             return
 
-        # --- Phase 1: extract prefixes only from selected rollouts ---
-        all_items: list[tuple[tuple[int, ...], list[int], float, str]] = []
+        # --- Build newline token ID set (cached) ---
+        if not hasattr(self, '_newline_token_ids'):
+            nl_ids = set()
+            for text in ['\n', '\n\n']:
+                encoded = self.tokenizer.encode(text, add_special_tokens=False)
+                nl_ids.update(encoded)
+            # Also check single-char decode for common newline tokens
+            for tid in range(self.tokenizer.vocab_size):
+                if tid >= 1000:
+                    break
+                try:
+                    decoded = self.tokenizer.decode([tid])
+                    if decoded == '\n':
+                        nl_ids.add(tid)
+                except Exception:
+                    pass
+            self._newline_token_ids = nl_ids
+
+        # --- Phase 1: extract prefixes using token-level split ---
+        all_items: list[tuple[tuple[int, ...], list[int], float]] = []
 
         for pk, (idx, _) in prompt_best.items():
             valid_len = int(response_mask[idx].sum().item())
             response_ids = responses[idx][:valid_len]
-            response_text = self.tokenizer.decode(response_ids, skip_special_tokens=True)
-            steps = process_thoughts(response_text)
-            if len(steps) == 0:
+            id_list = response_ids.cpu().tolist()
+
+            # Find newline positions as split boundaries
+            split_positions = []
+            for pos, tid in enumerate(id_list):
+                if tid in self._newline_token_ids:
+                    split_positions.append(pos + 1)
+
+            if len(split_positions) == 0:
                 continue
 
-            prefix_steps = steps[:-1] if len(steps) > 1 else steps
-            current_text = ""
-            for step in prefix_steps:
-                current_text = f"{current_text}\n{step}" if current_text else step
-                prefix_ids = self.tokenizer.encode(current_text, add_special_tokens=False)
+            # Merge splits that are too close (< 32 tokens apart)
+            merged = [split_positions[0]]
+            for pos in split_positions[1:]:
+                if pos - merged[-1] >= 32:
+                    merged.append(pos)
+            split_positions = merged
+
+            # Take all but the last split as prefix boundaries (skip trailing)
+            prefix_boundaries = split_positions[:-1] if len(split_positions) > 1 else split_positions
+
+            # Limit to at most 15 prefixes per prompt (evenly spaced if more)
+            if len(prefix_boundaries) > 15:
+                step = len(prefix_boundaries) / 15
+                prefix_boundaries = [prefix_boundaries[int(i * step)] for i in range(15)]
+
+            for boundary in prefix_boundaries:
+                prefix_ids = id_list[:boundary]
                 if len(prefix_ids) == 0:
                     continue
-
-                prefix_len = min(len(prefix_ids), valid_len)
+                prefix_len = min(boundary, valid_len)
                 prefix_entropy_mean = float(entropy_mat[idx, :prefix_len].mean().item())
-                all_items.append((pk, prefix_ids, prefix_entropy_mean, current_text))
+                all_items.append((pk, prefix_ids, prefix_entropy_mean))
 
         if len(all_items) == 0:
             return
 
-        # --- Phase 2: deduplicate and check cache ---
+        # --- Phase 2: deduplicate and batch-encode for embeddings ---
         texts_to_encode: list[str] = []
         text_to_idx: dict[int, int] = {}
+        item_hashes: list[int] = []
 
-        for _, _, _, text in all_items:
-            h = hash(text)
+        for pk, prefix_ids, _ in all_items:
+            h = hash(tuple(prefix_ids))
+            item_hashes.append(h)
             if h not in self._prefix_emb_cache and h not in text_to_idx:
                 text_to_idx[h] = len(texts_to_encode)
-                texts_to_encode.append(text)
+                texts_to_encode.append(self.tokenizer.decode(prefix_ids, skip_special_tokens=True))
 
         # --- Phase 3: single batched GPU encode for novel prefixes ---
         if len(texts_to_encode) > 0:
             with torch.no_grad():
                 new_embeddings = self.embedding_model.encode(
-                    texts_to_encode, convert_to_tensor=True, batch_size=256,
+                    texts_to_encode, convert_to_tensor=True, batch_size=512,
                 ).cpu()
             for text_hash, idx in text_to_idx.items():
                 self._prefix_emb_cache[text_hash] = new_embeddings[idx]
 
         # --- Phase 4: scatter cached embeddings back and update memory ---
-        for pk, prefix_ids, prefix_entropy_mean, text in all_items:
-            emb = self._prefix_emb_cache[hash(text)]
+        for (pk, prefix_ids, prefix_entropy_mean), h in zip(all_items, item_hashes):
+            emb = self._prefix_emb_cache[h]
             self.curiosity_memory.add_prefix_entry(pk, prefix_ids, prefix_entropy_mean, emb)
 
-        # Evict oldest entries if cache is too large (after all lookups are done)
+        # Evict oldest entries if cache is too large
         if len(self._prefix_emb_cache) > self._prefix_emb_cache_max:
             excess = len(self._prefix_emb_cache) - self._prefix_emb_cache_max
             keys_to_drop = list(self._prefix_emb_cache.keys())[:excess]
             for k in keys_to_drop:
                 del self._prefix_emb_cache[k]
 
-    def _hard_prompt_keys(self, batch: DataProto, reward_tensor: torch.Tensor) -> list[tuple[int, ...]]:
+    def _hard_prompt_keys(self, prompt_keys: list[tuple[int, ...]], reward_tensor: torch.Tensor) -> list[tuple[int, ...]]:
         n_rollout = max(int(self.config.actor_rollout_ref.rollout.n), 1)
         threshold = 1.0 / n_rollout
 
-        prompts = batch.batch["prompts"]
         seq_scores = reward_tensor.sum(dim=-1)
         grouped_pass: dict[tuple[int, ...], list[float]] = defaultdict(list)
 
-        for i in range(prompts.shape[0]):
-            k = self._prompt_key(prompts[i])
-            grouped_pass[k].append(1.0 if float(seq_scores[i].item()) > 0.0 else 0.0)
+        for k, score in zip(prompt_keys, seq_scores.cpu().tolist()):
+            grouped_pass[k].append(1.0 if score > 0.0 else 0.0)
 
         hard = []
         for k, vals in grouped_pass.items():
@@ -1816,8 +1870,8 @@ class RayPPOTrainer:
                                     )
 
                                 if self.guided_resampling_enabled:
-                                    hard_keys = self._hard_prompt_keys(batch, reward_tensor)
-                                    self._update_prefix_memory(batch, entropy_mat, hard_keys)
+                                    hard_keys = self._hard_prompt_keys(prompt_keys, reward_tensor)
+                                    self._update_prefix_memory(batch, entropy_mat, hard_keys, prompt_keys)
                                     self._enqueue_guided_prompts(hard_keys)
                                     metrics["exploration/hard_prompt_count"] = len(hard_keys)
                                     metrics["exploration/guided_queue_size"] = len(self._guided_prompt_queue)
