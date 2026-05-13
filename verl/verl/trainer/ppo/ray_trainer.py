@@ -119,12 +119,16 @@ class CuriosityMemory:
 
     #     return rewards
 
-    def add_rollout_embeddings(self, prompt_keys: list[tuple[int, ...]], embeddings: torch.Tensor) -> torch.Tensor:
+    def add_rollout_embeddings(self, prompt_keys: list[tuple[int, ...]], embeddings: torch.Tensor, normalize_per_group: bool = True) -> torch.Tensor:
         """Return novelty reward = nearest-neighbor cosine distance to history + current batch siblings.
 
         Warm-up: returns zero reward until the per-prompt history has accumulated
         at least ``min_history_before_reward`` entries (so the first batch behaves
         identically to the baseline).
+
+        Args:
+            normalize_per_group: If True (Option A), normalize rewards within each group by max.
+                If False (Option B), return raw cosine distances.
         """
         rewards = torch.zeros(embeddings.shape[0], device=embeddings.device, dtype=embeddings.dtype)
 
@@ -173,14 +177,15 @@ class CuriosityMemory:
             for emb_cpu in new_embs_detached:
                 self.rollout_memory[k].append(emb_cpu)
 
-        # 4. Normalize rewards within each data_key group
-        for k, items in grouped_embs.items():
-            indices = [x[0] for x in items]
-            group_rewards = rewards[indices]
-            max_reward = group_rewards.max()
-            if max_reward > 1e-8:
-                group_rewards = group_rewards / max_reward
-                rewards[indices] = group_rewards
+        # 4. Optionally normalize rewards within each data_key group
+        if normalize_per_group:
+            for k, items in grouped_embs.items():
+                indices = [x[0] for x in items]
+                group_rewards = rewards[indices]
+                max_reward = group_rewards.max()
+                if max_reward > 1e-8:
+                    group_rewards = group_rewards / max_reward
+                    rewards[indices] = group_rewards
 
         return rewards
 
@@ -1825,6 +1830,7 @@ class RayPPOTrainer:
 
                         novelty_lambda = float(self._cfg_get("algorithm.curiosity.novelty_lambda", 1.0))
                         novelty_scale = float(self._cfg_get("algorithm.curiosity.novelty_reward_scale", 0.0))
+                        novelty_after_norm = bool(self._cfg_get("algorithm.curiosity.novelty_after_norm", False))
 
                         if self.curiosity_enabled or self.guided_resampling_enabled:
                             with marked_timer("exploration", timing_raw, color="purple"):
@@ -1854,17 +1860,25 @@ class RayPPOTrainer:
                                             rollout_texts, convert_to_tensor=True, batch_size=512,
                                         ).cpu()
 
-                                    novelty_rewards = self.curiosity_memory.add_rollout_embeddings(prompt_keys, rollout_embeddings)
+                                    novelty_rewards = self.curiosity_memory.add_rollout_embeddings(
+                                        prompt_keys, rollout_embeddings,
+                                        normalize_per_group=(not novelty_after_norm),
+                                    )
 
-                                    # Apply State-Dependent (Prompt-Conditioned) Coefficient Modulation
-                                    dynamic_scales = []
-                                    for k in prompt_keys:
-                                        var_r = self.curiosity_memory.reward_variance_ema.get(k, 0.0)
-                                        gamma_x = np.exp(-novelty_lambda * var_r)
-                                        dynamic_scales.append(gamma_x)
+                                    if novelty_after_norm:
+                                        # Option B: use raw cosine distances directly
+                                        batch.batch["intrinsic_rewards"] = novelty_rewards.to(batch.batch["token_level_scores"].device)
+                                    else:
+                                        # Option A (legacy): apply dynamic scaling
+                                        dynamic_scales = []
+                                        for k in prompt_keys:
+                                            var_r = self.curiosity_memory.reward_variance_ema.get(k, 0.0)
+                                            gamma_x = np.exp(-novelty_lambda * var_r)
+                                            dynamic_scales.append(gamma_x)
 
-                                    dynamic_scales_tensor = torch.tensor(dynamic_scales, device=novelty_rewards.device, dtype=novelty_rewards.dtype)
-                                    batch.batch["intrinsic_rewards"] = (novelty_rewards * dynamic_scales_tensor).to(batch.batch["token_level_scores"].device)
+                                        dynamic_scales_tensor = torch.tensor(dynamic_scales, device=novelty_rewards.device, dtype=novelty_rewards.dtype)
+                                        batch.batch["intrinsic_rewards"] = (novelty_rewards * dynamic_scales_tensor).to(batch.batch["token_level_scores"].device)
+
                                     metrics["exploration/novelty_reward_mean"] = float(
                                         batch.batch["intrinsic_rewards"].mean().item()
                                     )
@@ -1908,8 +1922,9 @@ class RayPPOTrainer:
                                 intrinsic_rewards=batch.batch["intrinsic_rewards"],
                                 response_mask=batch.batch["response_mask"],
                                 index=batch.non_tensor_batch["uid"],
-                                novelty_alpha=novelty_scale,  # Now baked into intrinsic_rewards directly
+                                novelty_alpha=novelty_scale,
                                 norm_adv_by_std_in_grpo=norm_adv_by_std_in_grpo,
+                                novelty_after_norm=novelty_after_norm,
                             )
                             batch.batch["advantages"] = advantages
                             batch.batch["returns"] = returns

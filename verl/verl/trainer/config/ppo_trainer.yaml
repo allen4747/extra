@@ -186,6 +186,8 @@ algorithm:
 
     novelty_reward_scale: 0.1
 
+    novelty_after_norm: False
+
     max_rollouts_per_prompt: 64
 
     max_prefixes_per_prompt: 128

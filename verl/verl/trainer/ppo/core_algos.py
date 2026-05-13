@@ -333,16 +333,27 @@ def compute_grpo_outcome_advantage_with_positive_novelty(
     novelty_alpha: float,
     epsilon: float = 1e-6,
     norm_adv_by_std_in_grpo: bool = True,
+    novelty_after_norm: bool = False,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """GRPO-style outcome advantage with novelty bonus gated by positive sequence reward.
 
-    Combined sequence score:
+    Option A (novelty_after_norm=False, legacy):
         score = sequence_reward + novelty_alpha * intrinsic_reward * 1[sequence_reward > 0]
-    Then apply standard GRPO group-wise centering/normalization and spread over response tokens.
+        Then apply standard GRPO group-wise centering/normalization.
+
+    Option B (novelty_after_norm=True):
+        Compute standard GRPO advantage first, then add novelty bonus to correct rollouts.
+        This preserves GRPO's variance reduction and never penalizes correct solutions.
     """
     sequence_scores = token_level_rewards.sum(dim=-1)
     positive_mask = (sequence_scores > 0).to(sequence_scores.dtype)
-    scores = sequence_scores + novelty_alpha * intrinsic_rewards * positive_mask
+
+    if not novelty_after_norm:
+        # Option A: novelty enters before group normalization
+        scores = sequence_scores + novelty_alpha * intrinsic_rewards * positive_mask
+    else:
+        # Option B: use raw task reward for GRPO normalization
+        scores = sequence_scores.clone()
 
     id2score = defaultdict(list)
     id2mean = {}
@@ -369,6 +380,10 @@ def compute_grpo_outcome_advantage_with_positive_novelty(
                 scores[i] = (scores[i] - id2mean[index[i]]) / (id2std[index[i]] + epsilon)
             else:
                 scores[i] = scores[i] - id2mean[index[i]]
+
+        if novelty_after_norm:
+            # Option B: add novelty bonus after GRPO normalization
+            scores = scores + novelty_alpha * intrinsic_rewards * positive_mask
 
         scores = scores.unsqueeze(-1) * response_mask
 
