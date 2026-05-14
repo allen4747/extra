@@ -554,10 +554,12 @@ class RayPPOTrainer:
         )
         self._guided_prompt_queue: list[list[int]] = []
 
-        # Use GPU if available — the model is tiny (88MB) and worker GPUs are
-        # idle during the exploration phase, so memory contention is negligible.
-        _emb_device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-        self.embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device=_emb_device)
+        # Load embedding model on GPU for fast encoding, but offload to CPU
+        # after use so vLLM can reclaim GPU memory for KV-cache.
+        if self.curiosity_enabled or self.guided_resampling_enabled:
+            self.embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device='cpu')
+        else:
+            self.embedding_model = None
         self._prefix_emb_cache: dict[int, torch.Tensor] = {}
         self._prefix_emb_cache_max = 100_000
 
@@ -748,9 +750,12 @@ class RayPPOTrainer:
         # --- Phase 3: single batched GPU encode for novel prefixes ---
         if len(texts_to_encode) > 0:
             with torch.no_grad():
+                self.embedding_model.to('cuda:0')
                 new_embeddings = self.embedding_model.encode(
                     texts_to_encode, convert_to_tensor=True, batch_size=512,
                 ).cpu()
+                self.embedding_model.to('cpu')
+                torch.cuda.empty_cache()
             for text_hash, idx in text_to_idx.items():
                 self._prefix_emb_cache[text_hash] = new_embeddings[idx]
 
@@ -1856,9 +1861,12 @@ class RayPPOTrainer:
                                     )
 
                                     with torch.no_grad():
+                                        self.embedding_model.to('cuda:0')
                                         rollout_embeddings = self.embedding_model.encode(
                                             rollout_texts, convert_to_tensor=True, batch_size=512,
                                         ).cpu()
+                                        self.embedding_model.to('cpu')
+                                        torch.cuda.empty_cache()
 
                                     novelty_rewards = self.curiosity_memory.add_rollout_embeddings(
                                         prompt_keys, rollout_embeddings,
