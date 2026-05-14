@@ -554,12 +554,19 @@ class RayPPOTrainer:
         )
         self._guided_prompt_queue: list[list[int]] = []
 
-        # Load embedding model on GPU for fast encoding, but offload to CPU
-        # after use so vLLM can reclaim GPU memory for KV-cache.
+        # Load embedding model. Try GPU for speed; fall back to CPU if driver
+        # process has no CUDA access (common in Ray multi-node setups).
         if self.curiosity_enabled or self.guided_resampling_enabled:
-            self.embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device='cpu')
+            try:
+                torch.cuda.init()
+                _emb_device = 'cuda:0'
+            except Exception:
+                _emb_device = 'cpu'
+            self.embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2', device=_emb_device)
+            self._emb_on_gpu = (_emb_device == 'cuda:0')
         else:
             self.embedding_model = None
+            self._emb_on_gpu = False
         self._prefix_emb_cache: dict[int, torch.Tensor] = {}
         self._prefix_emb_cache_max = 100_000
 
@@ -747,15 +754,17 @@ class RayPPOTrainer:
                 text_to_idx[h] = len(texts_to_encode)
                 texts_to_encode.append(self.tokenizer.decode(prefix_ids, skip_special_tokens=True))
 
-        # --- Phase 3: single batched GPU encode for novel prefixes ---
+        # --- Phase 3: single batched encode for novel prefixes ---
         if len(texts_to_encode) > 0:
             with torch.no_grad():
-                self.embedding_model.to('cuda:0')
+                if self._emb_on_gpu:
+                    self.embedding_model.to('cuda:0')
                 new_embeddings = self.embedding_model.encode(
                     texts_to_encode, convert_to_tensor=True, batch_size=512,
                 ).cpu()
-                self.embedding_model.to('cpu')
-                torch.cuda.empty_cache()
+                if self._emb_on_gpu:
+                    self.embedding_model.to('cpu')
+                    torch.cuda.empty_cache()
             for text_hash, idx in text_to_idx.items():
                 self._prefix_emb_cache[text_hash] = new_embeddings[idx]
 
@@ -1861,12 +1870,14 @@ class RayPPOTrainer:
                                     )
 
                                     with torch.no_grad():
-                                        self.embedding_model.to('cuda:0')
+                                        if self._emb_on_gpu:
+                                            self.embedding_model.to('cuda:0')
                                         rollout_embeddings = self.embedding_model.encode(
                                             rollout_texts, convert_to_tensor=True, batch_size=512,
                                         ).cpu()
-                                        self.embedding_model.to('cpu')
-                                        torch.cuda.empty_cache()
+                                        if self._emb_on_gpu:
+                                            self.embedding_model.to('cpu')
+                                            torch.cuda.empty_cache()
 
                                     novelty_rewards = self.curiosity_memory.add_rollout_embeddings(
                                         prompt_keys, rollout_embeddings,
