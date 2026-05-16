@@ -188,6 +188,10 @@ algorithm:
 
     novelty_after_norm: False
 
+    novelty_metric: "embedding"  # "embedding", "ngram_count", or "policy_surprise"
+
+    novelty_ngram: 2  # n-gram size for ngram_count metric (2=bigram, 3=trigram)
+
     max_rollouts_per_prompt: 64
 
     max_prefixes_per_prompt: 128

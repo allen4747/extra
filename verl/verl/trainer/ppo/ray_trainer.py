@@ -23,7 +23,7 @@ import os
 import re
 import uuid
 import warnings
-from collections import deque
+from collections import Counter, deque
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass, field
@@ -186,6 +186,110 @@ class CuriosityMemory:
                 if max_reward > 1e-8:
                     group_rewards = group_rewards / max_reward
                     rewards[indices] = group_rewards
+
+        return rewards
+
+    def compute_ngram_count_novelty(
+        self,
+        prompt_keys: list[tuple[int, ...]],
+        token_id_lists: list[list[int]],
+        ngram_n: int = 2,
+    ) -> torch.Tensor:
+        """Count-based exploration: reward responses containing rare n-grams.
+
+        Maintains per-prompt n-gram visitation counts. Novelty for a response is
+        the mean inverse-square-root count over its n-grams:
+            novelty(y|x) = mean_{g in ngrams(y)} 1/sqrt(N_x(g) + 1)
+
+        Only updates counts for responses whose rewards are positive (called
+        externally after filtering). All responses get a novelty score computed
+        here; the positive_mask gating happens in the advantage function.
+        """
+        rewards = torch.zeros(len(token_id_lists), dtype=torch.float32)
+
+        if not hasattr(self, "ngram_counts"):
+            self.ngram_counts: dict[tuple[int, ...], Counter] = {}
+
+        grouped = defaultdict(list)
+        for i, (k, toks) in enumerate(zip(prompt_keys, token_id_lists, strict=True)):
+            grouped[k].append((i, toks))
+
+        for k, items in grouped.items():
+            if k not in self.ngram_counts:
+                self.ngram_counts[k] = Counter()
+
+            counts = self.ngram_counts[k]
+
+            for idx, toks in items:
+                if len(toks) < ngram_n:
+                    continue
+                ngrams = [tuple(toks[j:j + ngram_n]) for j in range(len(toks) - ngram_n + 1)]
+                if not ngrams:
+                    continue
+                novelty = sum(1.0 / (counts[g] + 1) ** 0.5 for g in ngrams) / len(ngrams)
+                rewards[idx] = novelty
+
+        return rewards
+
+    def update_ngram_counts(
+        self,
+        prompt_keys: list[tuple[int, ...]],
+        token_id_lists: list[list[int]],
+        positive_mask: torch.Tensor,
+        ngram_n: int = 2,
+    ) -> None:
+        """Update n-gram counts only for correct (positive reward) responses."""
+        if not hasattr(self, "ngram_counts"):
+            self.ngram_counts: dict[tuple[int, ...], Counter] = {}
+
+        for i, (k, toks) in enumerate(zip(prompt_keys, token_id_lists, strict=True)):
+            if positive_mask[i].item() <= 0:
+                continue
+            if k not in self.ngram_counts:
+                self.ngram_counts[k] = Counter()
+            if len(toks) < ngram_n:
+                continue
+            ngrams = [tuple(toks[j:j + ngram_n]) for j in range(len(toks) - ngram_n + 1)]
+            self.ngram_counts[k].update(ngrams)
+
+    def compute_policy_surprise_novelty(
+        self,
+        prompt_keys: list[tuple[int, ...]],
+        seq_log_probs: torch.Tensor,
+        positive_mask: torch.Tensor,
+    ) -> torch.Tensor:
+        """Policy-surprise novelty: reward correct solutions the policy finds unlikely.
+
+        Within each prompt group's correct solutions, compute z-scored negative
+        log-probability. Solutions with lower log-prob (more surprising to the
+        current policy) get higher novelty bonus.
+
+        Returns 0 for groups with fewer than 2 correct solutions (no comparison).
+        """
+        rewards = torch.zeros_like(seq_log_probs)
+
+        grouped = defaultdict(list)
+        for i, k in enumerate(prompt_keys):
+            grouped[k].append(i)
+
+        for k, indices in grouped.items():
+            correct_indices = [i for i in indices if positive_mask[i].item() > 0]
+            if len(correct_indices) < 2:
+                continue
+
+            correct_logprobs = seq_log_probs[correct_indices]
+            mean_lp = correct_logprobs.mean()
+            std_lp = correct_logprobs.std()
+            if std_lp < 1e-8:
+                continue
+
+            # Negative z-score: lower log-prob (more surprising) → higher novelty
+            surprise = -(correct_logprobs - mean_lp) / (std_lp + 1e-8)
+            # Clamp to [0, inf) — only reward surprising solutions, don't penalize typical ones
+            surprise = torch.clamp(surprise, min=0.0)
+
+            for j, idx in enumerate(correct_indices):
+                rewards[idx] = surprise[j]
 
         return rewards
 
@@ -1851,8 +1955,8 @@ class RayPPOTrainer:
                                 entropy_mat = policy_entropys
 
                                 if self.curiosity_enabled:
-                                    # Bulk embed all rollouts for novelty reward.
-                                    # Use batch_decode for speed instead of per-sample loop.
+                                    novelty_metric = str(self._cfg_get("algorithm.curiosity.novelty_metric", "embedding"))
+
                                     responses = batch.batch["responses"]
                                     response_mask = batch.batch["response_mask"]
                                     valid_lengths = response_mask.sum(dim=-1).int()
@@ -1864,39 +1968,64 @@ class RayPPOTrainer:
                                         tail_ids = responses[i][max(0, vl - 512):vl].tolist()
                                         tail_id_lists.append(tail_ids)
 
-                                    # Batch decode all at once
-                                    rollout_texts = self.tokenizer.batch_decode(
-                                        tail_id_lists, skip_special_tokens=True
-                                    )
-
-                                    with torch.no_grad():
-                                        if self._emb_on_gpu:
-                                            self.embedding_model.to('cuda:0')
-                                        rollout_embeddings = self.embedding_model.encode(
-                                            rollout_texts, convert_to_tensor=True, batch_size=512,
-                                        ).cpu()
-                                        if self._emb_on_gpu:
-                                            self.embedding_model.to('cpu')
-                                            torch.cuda.empty_cache()
-
-                                    novelty_rewards = self.curiosity_memory.add_rollout_embeddings(
-                                        prompt_keys, rollout_embeddings,
-                                        normalize_per_group=(not novelty_after_norm),
-                                    )
-
-                                    if novelty_after_norm:
-                                        # Option B: use raw cosine distances directly
+                                    if novelty_metric == "ngram_count":
+                                        # Count-based exploration: n-gram visitation novelty
+                                        ngram_n = int(self._cfg_get("algorithm.curiosity.novelty_ngram", 2))
+                                        novelty_rewards = self.curiosity_memory.compute_ngram_count_novelty(
+                                            prompt_keys, tail_id_lists, ngram_n=ngram_n,
+                                        )
+                                        # Update counts only for correct solutions (after computing rewards)
+                                        seq_rewards = batch.batch["token_level_scores"].sum(dim=-1)
+                                        pos_mask = (seq_rewards > 0).float()
+                                        self.curiosity_memory.update_ngram_counts(
+                                            prompt_keys, tail_id_lists, pos_mask, ngram_n=ngram_n,
+                                        )
                                         batch.batch["intrinsic_rewards"] = novelty_rewards.to(batch.batch["token_level_scores"].device)
-                                    else:
-                                        # Option A (legacy): apply dynamic scaling
-                                        dynamic_scales = []
-                                        for k in prompt_keys:
-                                            var_r = self.curiosity_memory.reward_variance_ema.get(k, 0.0)
-                                            gamma_x = np.exp(-novelty_lambda * var_r)
-                                            dynamic_scales.append(gamma_x)
 
-                                        dynamic_scales_tensor = torch.tensor(dynamic_scales, device=novelty_rewards.device, dtype=novelty_rewards.dtype)
-                                        batch.batch["intrinsic_rewards"] = (novelty_rewards * dynamic_scales_tensor).to(batch.batch["token_level_scores"].device)
+                                    elif novelty_metric == "policy_surprise":
+                                        # Policy-surprise: reward correct solutions the model finds unlikely
+                                        old_log_probs = batch.batch["old_log_probs"]  # [batch, seq_len]
+                                        seq_log_probs = (old_log_probs * response_mask).sum(dim=-1)  # [batch]
+                                        seq_rewards = batch.batch["token_level_scores"].sum(dim=-1)
+                                        pos_mask = (seq_rewards > 0).float()
+                                        novelty_rewards = self.curiosity_memory.compute_policy_surprise_novelty(
+                                            prompt_keys, seq_log_probs, pos_mask,
+                                        )
+                                        batch.batch["intrinsic_rewards"] = novelty_rewards.to(batch.batch["token_level_scores"].device)
+
+                                    else:
+                                        # Default: embedding-based cosine distance (original approach)
+                                        rollout_texts = self.tokenizer.batch_decode(
+                                            tail_id_lists, skip_special_tokens=True
+                                        )
+
+                                        with torch.no_grad():
+                                            if self._emb_on_gpu:
+                                                self.embedding_model.to('cuda:0')
+                                            rollout_embeddings = self.embedding_model.encode(
+                                                rollout_texts, convert_to_tensor=True, batch_size=512,
+                                            ).cpu()
+                                            if self._emb_on_gpu:
+                                                self.embedding_model.to('cpu')
+                                                torch.cuda.empty_cache()
+
+                                        novelty_rewards = self.curiosity_memory.add_rollout_embeddings(
+                                            prompt_keys, rollout_embeddings,
+                                            normalize_per_group=(not novelty_after_norm),
+                                        )
+
+                                        if novelty_after_norm:
+                                            batch.batch["intrinsic_rewards"] = novelty_rewards.to(batch.batch["token_level_scores"].device)
+                                        else:
+                                            # Option A (legacy): apply dynamic scaling
+                                            dynamic_scales = []
+                                            for k in prompt_keys:
+                                                var_r = self.curiosity_memory.reward_variance_ema.get(k, 0.0)
+                                                gamma_x = np.exp(-novelty_lambda * var_r)
+                                                dynamic_scales.append(gamma_x)
+
+                                            dynamic_scales_tensor = torch.tensor(dynamic_scales, device=novelty_rewards.device, dtype=novelty_rewards.dtype)
+                                            batch.batch["intrinsic_rewards"] = (novelty_rewards * dynamic_scales_tensor).to(batch.batch["token_level_scores"].device)
 
                                     metrics["exploration/novelty_reward_mean"] = float(
                                         batch.batch["intrinsic_rewards"].mean().item()
