@@ -18,11 +18,14 @@ args = parser.parse_args()
 #                   Global constants / variables                              #
 # --------------------------------------------------------------------------- #
 DATA_DIR = os.environ.get("DATA_DIR", "/home/wenyang/my_efs/datasets")
+N_SAMPLES = int(os.environ.get("EVAL_N_SAMPLES", "32"))
 TASKS       = [
-    {"name": "AIME24", "path": f"{DATA_DIR}/AIME24/test.parquet", "N": 16},
-    {"name": "AIME25", "path": f"{DATA_DIR}/AIME25/test.parquet", "N": 16},
-    {"name": "AMC23", "path": f"{DATA_DIR}/AMC23/test.parquet", "N": 16},
-    {"name": "MATH-500", "path": f"{DATA_DIR}/MATH-500/test.parquet", "N": 16},
+    {"name": "AIME24", "path": f"{DATA_DIR}/AIME24/test.parquet", "N": N_SAMPLES},
+    {"name": "AIME25", "path": f"{DATA_DIR}/AIME25/test.parquet", "N": N_SAMPLES},
+    {"name": "AMC23", "path": f"{DATA_DIR}/AMC23/test.parquet", "N": N_SAMPLES},
+    {"name": "MATH-500", "path": f"{DATA_DIR}/MATH-500/test.parquet", "N": N_SAMPLES},
+    {"name": "Minerva", "path": f"{DATA_DIR}/Minerva/test.parquet", "N": N_SAMPLES},
+    {"name": "OlympiadBench", "path": f"{DATA_DIR}/OlympiadBench/test.parquet", "N": N_SAMPLES},
 ]
 PROMPT_TEMPLATE = """{problem} Please reason step by step, and put your final answer within \\boxed{{}}."""
 NAME        = args.model
@@ -121,6 +124,10 @@ def main():
         task_name = task["name"]
         task_path = task["path"]
         N = task["N"]
+
+        if not os.path.exists(task_path):
+            print(f"[SKIP] {task_name}: file not found at {task_path}")
+            continue
 
         print(f"Starting evaluation for task: {task_name} (N={N})")
 
