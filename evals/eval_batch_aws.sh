@@ -2,12 +2,18 @@
 # AWS server (ip-172-31-95-50): 3e-6 runs at step 250.
 #
 # Usage:
-#   CUDA_VISIBLE_DEVICES=0,1,2,3 bash eval_extra_qwen_batch_aws.sh
+#   NUM_GPUS=4 bash eval_batch_aws.sh           # auto-detect 4 free GPUs and wait
+#   CUDA_VISIBLE_DEVICES=0,1,2,3 bash eval_batch_aws.sh   # use specific GPUs
 
 set -e
 
 EXTRA_REPO="${EXTRA_REPO:-$HOME/ExTra}"
 EVAL_SCRIPT="${EXTRA_REPO}/evals/eval_extra_qwen.sh"
+
+# Auto-detect GPUs if NUM_GPUS is set and CUDA_VISIBLE_DEVICES not provided
+if [ -n "$NUM_GPUS" ] && [ -z "$CUDA_VISIBLE_DEVICES" ]; then
+    source "${EXTRA_REPO}/evals/wait_for_gpus.sh"
+fi
 
 export CKPT_BASE="${CKPT_BASE:-/home/wenyang/my_efs/checkpoints/ExTra_Qwen}"
 export DATA_DIR="${DATA_DIR:-/home/wenyang/my_efs/datasets}"
