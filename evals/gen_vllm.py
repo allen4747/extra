@@ -129,10 +129,15 @@ def main():
             print(f"[SKIP] {task_name}: file not found at {task_path}")
             continue
 
-        print(f"Starting evaluation for task: {task_name} (N={N})")
-
         # Update output path for the current task
         out_path = OUT_DIR / f"{task_name.lower()}_t{TEMPERATURE}_p{TOP_P}_n{N}-MNT{MAX_TOKENS}.jsonl"
+
+        # Skip if already generated (resumable across crashes)
+        if out_path.exists() and out_path.stat().st_size > 0:
+            print(f"[SKIP] {task_name}: output already exists at {out_path}")
+            continue
+
+        print(f"Starting evaluation for task: {task_name} (N={N})")
 
         # 1. Load original prompts
         samples = load_samples(task_path)
