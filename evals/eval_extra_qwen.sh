@@ -26,6 +26,7 @@ OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs}"
 EXTRA_REPO="${EXTRA_REPO:-$HOME/ExTra}"
 
 export DATA_DIR EVAL_N_SAMPLES
+export PYTHONPATH="${EXTRA_REPO}/verl:${PYTHONPATH:-}"
 
 CKPT_DIR="${CKPT_BASE}/${RUN_NAME}/global_step_${STEP}"
 HF_MODEL_DIR="${CKPT_DIR}/hf_model"
