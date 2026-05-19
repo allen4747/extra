@@ -17,8 +17,8 @@ fi
 
 export CKPT_BASE="${CKPT_BASE:-/data/I759897/checkpoints/ExTra_Qwen}"
 export DATA_DIR="${DATA_DIR:-$HOME/datasets}"
-export OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs}"
-export EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-32}"
+export OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs_v2}"
+export EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-16}"
 
 RUNS=(
     "09_ExTra_NgramNovelty_3e6_Qwen3_tel1:250"

@@ -17,8 +17,8 @@ fi
 
 export CKPT_BASE="${CKPT_BASE:-/external1/wenyang/checkpoints/ExTra_Qwen}"
 export DATA_DIR="${DATA_DIR:-/home/wenyang/my_efs/datasets}"
-export OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs}"
-export EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-32}"
+export OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs_v2}"
+export EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-16}"
 
 RUNS=(
     "03_ExTra_Full_Qwen3_0.01_hlr:250"

@@ -17,8 +17,8 @@ fi
 
 export CKPT_BASE="${CKPT_BASE:-/home/wenyang/my_efs/checkpoints/ExTra_Qwen}"
 export DATA_DIR="${DATA_DIR:-/home/wenyang/my_efs/datasets}"
-export OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs}"
-export EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-32}"
+export OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs_v2}"
+export EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-16}"
 
 RUNS=(
     "01b_GRPO_Baseline_3e6_Qwen3:250"

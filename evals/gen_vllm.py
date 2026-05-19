@@ -18,7 +18,7 @@ args = parser.parse_args()
 #                   Global constants / variables                              #
 # --------------------------------------------------------------------------- #
 DATA_DIR = os.environ.get("DATA_DIR", "/home/wenyang/my_efs/datasets")
-N_SAMPLES = int(os.environ.get("EVAL_N_SAMPLES", "32"))
+N_SAMPLES = int(os.environ.get("EVAL_N_SAMPLES", "16"))
 TASKS       = [
     {"name": "AIME24", "path": f"{DATA_DIR}/AIME24/test.parquet", "N": N_SAMPLES},
     {"name": "AIME25", "path": f"{DATA_DIR}/AIME25/test.parquet", "N": N_SAMPLES},
@@ -29,9 +29,9 @@ TASKS       = [
 ]
 PROMPT_TEMPLATE = """{problem} Please reason step by step, and put your final answer within \\boxed{{}}."""
 NAME        = args.model
-MAX_TOKENS  = 8192
-TEMPERATURE = 1.0
-TOP_P       = 1.0
+MAX_TOKENS  = 31744
+TEMPERATURE = 0.7
+TOP_P       = 0.9
 OUT_DIR     = Path(args.out_dir)
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 

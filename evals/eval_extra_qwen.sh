@@ -21,8 +21,8 @@ CKPT_BASE="${CKPT_BASE:?ERROR: CKPT_BASE must be set (e.g. /home/wenyang/my_efs/
 
 # --- Optional env vars ---
 DATA_DIR="${DATA_DIR:-/home/wenyang/my_efs/datasets}"
-EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-32}"
-OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs}"
+EVAL_N_SAMPLES="${EVAL_N_SAMPLES:-16}"
+OUTPUT_BASE="${OUTPUT_BASE:-./eval_outputs_v2}"
 EXTRA_REPO="${EXTRA_REPO:-$HOME/ExTra}"
 
 export DATA_DIR EVAL_N_SAMPLES
