@@ -44,11 +44,11 @@ echo "=========================================================="
 # 1. Merge FSDP -> HF format if needed
 if [ ! -f "$HF_MODEL_DIR/config.json" ]; then
     echo "[1/3] Merging FSDP shards to HuggingFace format..."
-    python3 "${EXTRA_REPO}/verl/scripts/legacy_model_merger.py" merge \
+    (cd "${EXTRA_REPO}/verl" && python3 scripts/legacy_model_merger.py merge \
         --backend fsdp \
         --local_dir "${CKPT_DIR}/actor" \
         --hf_model_path "${CKPT_DIR}/actor/huggingface" \
-        --target_dir "$HF_MODEL_DIR"
+        --target_dir "$HF_MODEL_DIR")
 else
     echo "[1/3] Merged HF model already exists at $HF_MODEL_DIR"
 fi
