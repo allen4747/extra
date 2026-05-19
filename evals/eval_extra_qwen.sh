@@ -34,6 +34,9 @@ OUTPUT_DIR="${OUTPUT_BASE}/${RUN_NAME}/step_${STEP}"
 
 mkdir -p "$OUTPUT_DIR"
 
+# Resolve OUTPUT_DIR to absolute path so subsequent cd doesn't break it
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd)"
+
 echo "=========================================================="
 echo "  Evaluating: $RUN_NAME @ step $STEP"
 echo "  Checkpoint: $CKPT_DIR"
