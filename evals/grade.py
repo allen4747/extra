@@ -37,15 +37,41 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--eval_dir', type=str, required=True, help='Evaluation directory')
+parser.add_argument('--no_verifier', action='store_true',
+                    help='Skip the CompassVerifier-3B fallback (rule-based only).')
+parser.add_argument('--verifier_model', type=str,
+                    default='opencompass/CompassVerifier-3B',
+                    help='HF id of the model used to grade responses that the rule-based '
+                         'verifier cannot match.')
 args = parser.parse_args()
 
 EVAL_DIR = Path(args.eval_dir)
 OUTPUT_FILE = EVAL_DIR / "grading_results.json"
 
-model_name = None
+# Model-based fallback verifier.  Loaded lazily on first need so the script
+# is fast when nothing falls back (e.g. small-scale debug runs).
+USE_VERIFIER = not args.no_verifier
+VERIFIER_MODEL_NAME = args.verifier_model
 model_tokenizer = None
 vllm_model = None
 sampling_params = None
+
+
+def _load_verifier():
+    """Load the CompassVerifier-3B model + tokenizer on demand."""
+    global model_tokenizer, vllm_model, sampling_params
+    if vllm_model is not None:
+        return
+    print(f"[verifier] loading fallback judge: {VERIFIER_MODEL_NAME}")
+    model_tokenizer = AutoTokenizer.from_pretrained(VERIFIER_MODEL_NAME)
+    vllm_model = LLM(
+        model=VERIFIER_MODEL_NAME,
+        tensor_parallel_size=1,
+    )
+    sampling_params = SamplingParams(
+        temperature=0.0,
+        max_tokens=2048,
+    )
 
 length_tokenizer = None
 
@@ -83,11 +109,15 @@ def process_jsonl_file(file_name):
             data = json.loads(line)
             id = int(data["example_id"])
             while len(results) <= id:  # Ensure the list is large enough
-                results.append({"gt": None, "responses": []})
+                results.append({"gt": None, "responses": [], "question": ""})
             gt = data["answer"]
             response = data["response"]
             results[id]["gt"] = gt
             results[id]["responses"].append(response)
+            # Carry the prompt forward so the model-based verifier can see
+            # the original question (gen_vllm stores it under 'prompt').
+            if not results[id].get("question"):
+                results[id]["question"] = data.get("prompt", "")
     return results
 
 def parse_hyperparameters_from_filename(filename):
@@ -180,7 +210,27 @@ def grade_file(file_path):
         diverse.append(get_diverse_score(responses_list))
 
     if all_model_inputs:
-        model_based_scores = [False] * len(all_model_inputs)
+        if USE_VERIFIER:
+            _load_verifier()
+            # Wrap each prompt in the verifier's chat template
+            wrapped = [
+                model_tokenizer.apply_chat_template(
+                    [{"role": "user", "content": prompt}],
+                    add_generation_prompt=True,
+                    tokenize=False,
+                )
+                for prompt in all_model_inputs
+            ]
+            outputs = vllm_model.generate(wrapped, sampling_params)
+            model_based_scores = []
+            for out in outputs:
+                judgement = out.outputs[0].text.strip()
+                # The verifier emits a single letter A / B / C.  Treat A as
+                # correct; any other letter (including C = INVALID) as wrong.
+                model_based_scores.append(judgement.startswith("A"))
+        else:
+            # Conservative fallback when the verifier is disabled.
+            model_based_scores = [False] * len(all_model_inputs)
 
         # Combine rule-based and model-based scores
         model_idx = 0
