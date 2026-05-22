@@ -2,13 +2,13 @@
 """
 Qwen3-1.7B variant of resampling_experiment.py.
 
-The original script hardcodes Qwen2.5-1.5B inside main() via load_models()
-(no kwarg passed).  This wrapper monkey-patches load_models so it loads
-Qwen3-1.7B instead.
-
-NOTE: the original script also hardcodes CUDA_VISIBLE_DEVICES="4,5,6,7"
-at the top of the file.  Override by exporting CUDA_VISIBLE_DEVICES
-*before* invoking this script.
+Improvements over a naive port:
+  - Forces use of all available GPUs: HF scoring model on cuda:0,
+    vLLM with tensor_parallel_size=(N-1) on cuda:1..(N-1).
+  - Disables vLLM's torch.compile path (VLLM_USE_V1=0) to avoid the
+    "failed to get the hash of the compiled graph" assertion seen with
+    some vLLM/torch combinations.
+  - Forces enforce_eager=True on vLLM as a safety belt.
 
 Usage:
     cd analysis/
@@ -18,10 +18,12 @@ Usage:
 import os
 import sys
 
-# Allow user to override the hardcoded CUDA_VISIBLE_DEVICES from the
-# original module by setting it before import.
+# CUDA_VISIBLE_DEVICES must be set before any cuda init.
 if "CUDA_VISIBLE_DEVICES" not in os.environ:
     os.environ["CUDA_VISIBLE_DEVICES"] = "0,1,2,3"
+
+# Disable vLLM's torch.compile path (works around hash-of-graph errors).
+os.environ.setdefault("VLLM_USE_V1", "0")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -29,24 +31,61 @@ sys.path.insert(0, HERE)
 # Install shims for missing legacy deps BEFORE importing the original.
 import _qwen3_shims  # noqa: F401
 
-import resampling_experiment as rs_orig
+# The legacy script unconditionally overwrites CUDA_VISIBLE_DEVICES on
+# import.  Save the user's value first, then restore it after import.
+_user_visible = os.environ.get("CUDA_VISIBLE_DEVICES")
+
+import resampling_experiment as rs_orig  # noqa: E402
+
+if _user_visible is not None:
+    os.environ["CUDA_VISIBLE_DEVICES"] = _user_visible
+
+import torch  # noqa: E402
+from vllm import LLM as _OrigLLM  # noqa: E402
+
 
 QWEN3_MODEL = "Qwen/Qwen3-1.7B"
 
-# Wrap load_models so the wrapper supplies the new model name even though
-# the original main() calls load_models() with no arguments.
+# Use all available GPUs.  HF scoring model goes on cuda:0; vLLM TP
+# spans the remaining (N-1) GPUs.  For a 1.7B model on H200/A100 this
+# is the simplest way to use all 4 cards.
+_n_gpus = max(1, torch.cuda.device_count())
+TP_SIZE = max(1, _n_gpus - 1)
+
+
+# ----- Patch the vLLM constructor used inside resampling_experiment -----
+class _PatchedLLM(_OrigLLM):
+    def __init__(self, *args, **kwargs):
+        kwargs["tensor_parallel_size"] = TP_SIZE
+        kwargs.setdefault("enforce_eager", True)
+        kwargs.setdefault("gpu_memory_utilization", 0.85)
+        super().__init__(*args, **kwargs)
+
+
+rs_orig.LLM = _PatchedLLM
+
+
+# ----- Wrap load_models to inject the Qwen3 name -----
 _orig_load_models = rs_orig.load_models
+
 
 def _patched_load_models(model_name=QWEN3_MODEL):
     return _orig_load_models(model_name=model_name)
+
 
 rs_orig.load_models = _patched_load_models
 
 
 if __name__ == "__main__":
-    import torch, numpy as np, random
+    import numpy as np
+    import random
+
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
+    print(
+        f"[qwen3] using {_n_gpus} GPU(s): "
+        f"HF scoring on cuda:0, vLLM TP={TP_SIZE} on cuda:1..{_n_gpus - 1}"
+    )
     rs_orig.run_experiment()
     print("\n[done] Qwen3 resampling experiment finished.")
