@@ -40,6 +40,9 @@ def main():
     )
 
     sys.path.insert(0, str(HERE))
+    # Install shims for missing legacy deps so the exec'd source resolves
+    # `simplified_evaluator` and `openrlhf` imports.
+    import _qwen3_shims  # noqa: F401
     ns = {"__name__": "__main__", "__file__": str(src_path)}
     exec(compile(src, str(src_path), "exec"), ns)
 

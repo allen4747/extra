@@ -26,6 +26,9 @@ if "CUDA_VISIBLE_DEVICES" not in os.environ:
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+# Install shims for missing legacy deps BEFORE importing the original.
+import _qwen3_shims  # noqa: F401
+
 import resampling_experiment as rs_orig
 
 QWEN3_MODEL = "Qwen/Qwen3-1.7B"

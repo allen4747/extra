@@ -20,6 +20,10 @@ import torch
 # Make the original module importable
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# Install shims for `simplified_evaluator` and `openrlhf` BEFORE
+# importing the legacy script that depends on them.
+import _qwen3_shims  # noqa: F401
+
 import monte_carlo_experiment as mc_orig
 
 
