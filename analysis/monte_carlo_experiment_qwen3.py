@@ -40,16 +40,28 @@ from vllm import LLM as _OrigLLM  # noqa: E402
 QWEN3_OUT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "qwen3_outputs")
 os.makedirs(QWEN3_OUT_DIR, exist_ok=True)
 
+
+# Qwen3-1.7B has 16 attention heads.  vLLM requires TP to divide that
+# evenly, so valid TP sizes are 1, 2, 4, 8, 16.
+def _pick_tp(n_gpus: int) -> int:
+    for tp in (n_gpus, 4, 2, 1):
+        if tp <= n_gpus and 16 % tp == 0:
+            return tp
+    return 1
+
+
 _n_gpus = max(1, torch.cuda.device_count())
-TP_SIZE = max(1, _n_gpus - 1)
+TP_SIZE = _pick_tp(_n_gpus)
 
 
-# ----- Patch vLLM to use all (N-1) GPUs after the HF model takes cuda:0 -----
+# ----- Patch vLLM to use all visible GPUs (with valid TP size) -----
 class _PatchedLLM(_OrigLLM):
     def __init__(self, *args, **kwargs):
         kwargs["tensor_parallel_size"] = TP_SIZE
         kwargs.setdefault("enforce_eager", True)
-        kwargs.setdefault("gpu_memory_utilization", 0.85)
+        # Lower memory utilization since the HF metric model also lives
+        # on cuda:0 alongside one of the vLLM TP slots.
+        kwargs.setdefault("gpu_memory_utilization", 0.6)
         super().__init__(*args, **kwargs)
 
 

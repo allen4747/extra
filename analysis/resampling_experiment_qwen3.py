@@ -46,11 +46,19 @@ from vllm import LLM as _OrigLLM  # noqa: E402
 
 QWEN3_MODEL = "Qwen/Qwen3-1.7B"
 
-# Use all available GPUs.  HF scoring model goes on cuda:0; vLLM TP
-# spans the remaining (N-1) GPUs.  For a 1.7B model on H200/A100 this
-# is the simplest way to use all 4 cards.
+# Qwen3-1.7B has 16 attention heads.  vLLM requires TP to divide that
+# evenly, so valid TP sizes are 1, 2, 4, 8, 16.  We use TP=N if all
+# N visible GPUs evenly divide head count, else fall back to the
+# largest divisor.
+def _pick_tp(n_gpus: int) -> int:
+    for tp in (n_gpus, 4, 2, 1):
+        if tp <= n_gpus and 16 % tp == 0:
+            return tp
+    return 1
+
+
 _n_gpus = max(1, torch.cuda.device_count())
-TP_SIZE = max(1, _n_gpus - 1)
+TP_SIZE = _pick_tp(_n_gpus)
 
 
 # ----- Patch the vLLM constructor used inside resampling_experiment -----
@@ -58,7 +66,9 @@ class _PatchedLLM(_OrigLLM):
     def __init__(self, *args, **kwargs):
         kwargs["tensor_parallel_size"] = TP_SIZE
         kwargs.setdefault("enforce_eager", True)
-        kwargs.setdefault("gpu_memory_utilization", 0.85)
+        # Lower memory utilization since the HF scoring model also lives
+        # on cuda:0 alongside one of the vLLM TP slots.
+        kwargs.setdefault("gpu_memory_utilization", 0.6)
         super().__init__(*args, **kwargs)
 
 
