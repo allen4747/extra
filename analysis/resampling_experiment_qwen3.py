@@ -48,5 +48,5 @@ if __name__ == "__main__":
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
-    rs_orig.main()
+    rs_orig.run_experiment()
     print("\n[done] Qwen3 resampling experiment finished.")
