@@ -28,8 +28,13 @@ os.environ.setdefault("VLLM_USE_V1", "0")
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
-# Install shims for missing legacy deps BEFORE importing the original.
+# Install shims and robustness helpers BEFORE importing the original.
 import _qwen3_shims  # noqa: F401
+import _qwen3_robust as robust  # noqa: F401, E402
+
+# Output dir for log files / result JSONs (matches monte_carlo).
+QWEN3_OUT_DIR = os.path.join(HERE, "qwen3_outputs")
+os.makedirs(QWEN3_OUT_DIR, exist_ok=True)
 
 # The legacy script unconditionally overwrites CUDA_VISIBLE_DEVICES on
 # import.  Save the user's value first, then restore it after import.
@@ -90,6 +95,7 @@ if __name__ == "__main__":
     import numpy as np
     import random
 
+    robust.dual_log(QWEN3_OUT_DIR)
     torch.manual_seed(42)
     np.random.seed(42)
     random.seed(42)
@@ -98,4 +104,15 @@ if __name__ == "__main__":
         f"HF scoring on cuda:0, vLLM TP={TP_SIZE} on cuda:1..{_n_gpus - 1}"
     )
     rs_orig.run_experiment()
+
+    # Pull the final pass@32 numbers from the run_experiment scope by
+    # parsing the captured log; alternatively the user can read the
+    # log file directly.  We just record a marker file here so the
+    # batch driver knows resampling completed.
+    robust.safe_save_json(
+        {"status": "completed", "model": QWEN3_MODEL,
+         "note": "see resampling_experiment_qwen3 log file for "
+                 "Random Sampling vs Resampling Pass@32 numbers."},
+        os.path.join(QWEN3_OUT_DIR, "resampling_status.json"),
+    )
     print("\n[done] Qwen3 resampling experiment finished.")

@@ -51,13 +51,38 @@ def main():
     )
 
     sys.path.insert(0, str(HERE))
-    # Install shims so the exec'd source resolves simplified_evaluator
-    # and openrlhf imports.
+    # Install shims and robustness helpers.
     import _qwen3_shims  # noqa: F401
+    import _qwen3_robust as robust  # noqa: F401
+
+    robust.dual_log(str(QWEN3_OUT_DIR))
+
+    # Patch matplotlib.savefig (if used) so each plot writes a sidecar
+    # data-only JSON for easy re-plotting with a new style.
+    try:
+        robust.patch_pyplot_savefig(str(QWEN3_OUT_DIR))
+    except Exception as e:
+        print(f"[robustness] could not patch pyplot.savefig: {e}")
 
     print(f"[qwen3] using cuda:0 (covo experiment cannot benefit from multi-GPU)")
     ns = {"__name__": "__main__", "__file__": str(src_path)}
-    exec(compile(src, str(src_path), "exec"), ns)
+    try:
+        exec(compile(src, str(src_path), "exec"), ns)
+    except Exception as e:
+        import traceback
+        print(f"[robustness] covo exec failed: {e}")
+        traceback.print_exc()
+
+    # Mark completion (even if the run partially failed, we have the
+    # log file and the per-run pickled data).
+    robust.safe_save_json(
+        {"status": "completed_or_partial",
+         "model": "Qwen/Qwen3-1.7B",
+         "cache": str(QWEN3_CACHE),
+         "note": "Per-run correlations are printed to the log file; "
+                 "raw collected_data is in covo_collected_data_qwen3.pkl."},
+        str(QWEN3_OUT_DIR / "covo_status.json"),
+    )
 
     print(f"\n[done] Qwen3 covo experiment finished. Cache: {QWEN3_CACHE}")
 

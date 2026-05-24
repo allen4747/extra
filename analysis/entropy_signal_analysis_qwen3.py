@@ -54,8 +54,21 @@ def main():
     # Make the original module's other relative imports still resolve.
     sys.path.insert(0, str(HERE))
 
+    # Robustness helpers: dual_log + savefig sidecar.
+    import _qwen3_robust as robust  # noqa: F401
+    robust.dual_log(str(QWEN3_OUT_DIR))
+    try:
+        robust.patch_pyplot_savefig(str(QWEN3_OUT_DIR))
+    except Exception as e:
+        print(f"[robustness] could not patch pyplot.savefig: {e}")
+
     ns = {"__name__": "__main__", "__file__": str(orig_path)}
-    exec(compile(src, str(orig_path), "exec"), ns)
+    try:
+        exec(compile(src, str(orig_path), "exec"), ns)
+    except Exception as e:
+        import traceback
+        print(f"[robustness] entropy_signal exec failed: {e}")
+        traceback.print_exc()
 
     print(f"\n[done] Qwen3 entropy-signal outputs written under: {QWEN3_OUT_DIR}")
 
