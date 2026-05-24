@@ -397,7 +397,10 @@ def run_one_problem(*, gen_llm, scoring_model, tokenizer, prompt, gt,
     embs = torch.stack([r["embedding"] for r in prefix_records])  # [N, D]
     embs = F.normalize(embs.float(), p=2, dim=1)
     sim = embs @ embs.t()                            # [N, N] in [-1, 1]
-    raw_scores = torch.tensor([r["mean_entropy"] for r in prefix_records])
+    raw_scores = torch.tensor(
+        [r["mean_entropy"] for r in prefix_records],
+        dtype=torch.float32, device=embs.device,
+    )
     weights = F.softmax(sim / max(tau, 1e-6), dim=1)  # [N, N]
     smoothed = (weights @ raw_scores).cpu().numpy()
     sm_idx = int(np.argmin(smoothed))
