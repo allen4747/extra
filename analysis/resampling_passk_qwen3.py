@@ -87,16 +87,63 @@ from datasets import load_dataset  # noqa: E402
 # Configuration
 # ----------------------------------------------------------------------
 
+def _load_aime24(local_path):
+    """Load AIME24 problems.  Try local parquet first, fall back to HF."""
+    p = Path(os.path.expanduser(local_path)) if local_path else None
+    if p is not None and p.exists():
+        try:
+            import pandas as pd
+            df = pd.read_parquet(p)
+            print(f"[data] AIME24 from local parquet: {p}")
+            cols = {c.lower(): c for c in df.columns}
+            problem_col = cols.get("problem") or cols.get("question") or "problem"
+            answer_col = cols.get("answer") or cols.get("final_answer") or "answer"
+            return [{"problem": str(r[problem_col]),
+                     "answer": str(r[answer_col]),
+                     "level": "AIME"}
+                    for _, r in df.iterrows()]
+        except Exception as e:
+            print(f"[data] local AIME24 parquet failed ({e}); falling back to HF")
+
+    # HF fallback. The "Maxwell-Jia/AIME_2024" mirror is commonly used.
+    print("[data] AIME24 from HF: Maxwell-Jia/AIME_2024")
+    ds = load_dataset("Maxwell-Jia/AIME_2024", split="train")
+    out = []
+    for x in ds:
+        prob = x.get("Problem") or x.get("problem") or x.get("question")
+        ans = x.get("Answer") or x.get("answer") or x.get("final_answer")
+        if prob is None or ans is None:
+            continue
+        out.append({"problem": str(prob), "answer": str(ans), "level": "AIME"})
+    return out
+
+
 @torch.no_grad()
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", default="Qwen/Qwen3-1.7B")
+    parser.add_argument("--dataset", default="aime24",
+                        choices=["aime24", "math500"],
+                        help="Eval dataset.  AIME24 is harder (~30%% pass@32) "
+                             "and avoids the ceiling effect seen on MATH-500.")
+    parser.add_argument("--math500_levels", nargs="+", type=int,
+                        default=[5],
+                        help="(math500 only) MATH-500 difficulty levels.")
+    parser.add_argument("--aime24_path", type=str,
+                        default=os.environ.get(
+                            "AIME24_PATH",
+                            os.path.expanduser(
+                                "~/my_efs/datasets/AIME24/test.parquet")),
+                        help="Local parquet path for AIME24 (override via "
+                             "$AIME24_PATH env var).  Falls back to the HF "
+                             "dataset if the file is missing.")
     parser.add_argument("--n_problems", type=int, default=50,
-                        help="Number of MATH-500 level-5 problems to use.")
+                        help="Number of problems to use.  AIME24 has 30 "
+                             "problems total; the script clamps to that.")
     parser.add_argument("--n_per_arm", type=int, default=16,
                         help="Number of continuations per arm.  pass@k is "
                              "computed for k in {1,8,n_per_arm}.")
-    parser.add_argument("--n_prefix_candidates", type=int, default=16,
+    parser.add_argument("--n_prefix_candidates", type=int, default=32,
                         help="Number of prefix candidates from which to pick "
                              "the best (used by raw and smoothed arms).")
     parser.add_argument("--tau", type=float, default=0.1,
@@ -154,13 +201,24 @@ def main():
     )
 
     # ---- Load problems ----
-    print(f"[data] loading MATH-500 level-5, taking {args.n_problems} problems")
-    ds = load_dataset("HuggingFaceH4/MATH-500", split="test")
-    pool = [{"problem": x["problem"], "answer": x["answer"], "level": x.get("level")}
-            for x in ds if x.get("level") in [5]]
+    dataset_label = ""
+    if args.dataset == "aime24":
+        dataset_label = "AIME24"
+        pool = _load_aime24(args.aime24_path)
+        print(f"[data] AIME24: {len(pool)} problems available")
+    else:
+        levels = sorted(set(int(l) for l in args.math500_levels))
+        dataset_label = f"MATH-500 (level {','.join(map(str, levels))})"
+        print(f"[data] loading {dataset_label}, taking up to {args.n_problems} problems")
+        ds = load_dataset("HuggingFaceH4/MATH-500", split="test")
+        pool = [{"problem": x["problem"],
+                 "answer": x["answer"],
+                 "level": x.get("level")}
+                for x in ds if x.get("level") in levels]
+
     random.shuffle(pool)
     problems = pool[:args.n_problems]
-    print(f"[data] using {len(problems)} problems")
+    print(f"[data] using {len(problems)} problems from {dataset_label}")
 
     # ---- Run experiment ----
     K_VALUES = sorted(set([1, min(8, args.n_per_arm), args.n_per_arm]))
@@ -206,6 +264,8 @@ def main():
     summary = {
         "config": {
             "model": args.model,
+            "dataset": args.dataset,
+            "dataset_label": dataset_label,
             "n_problems_attempted": len(problems),
             "n_problems_succeeded": len(per_problem),
             "n_per_arm": args.n_per_arm,
@@ -500,7 +560,8 @@ def plot_grouped_bars(summary, output_prefix):
     ax.set_xticklabels([f"pass@{k}" for k in K_VALUES])
     ax.set_ylabel("Pass rate")
     ax.set_ylim(0, 1.0)
-    ax.set_title(f"Resampling pass@k on MATH-500 (level 5, n={summary['config']['n_problems_succeeded']})")
+    ds_lbl = summary["config"].get("dataset_label", "MATH-500")
+    ax.set_title(f"Resampling pass@k on {ds_lbl} (n={summary['config']['n_problems_succeeded']})")
     ax.grid(alpha=0.3, axis="y")
     ax.legend(frameon=False, loc="upper left")
     plt.tight_layout()

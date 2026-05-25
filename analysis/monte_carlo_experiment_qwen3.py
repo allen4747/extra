@@ -18,6 +18,7 @@ Usage:
     CUDA_VISIBLE_DEVICES=0,1,2,3 python monte_carlo_experiment_qwen3.py
 """
 
+import argparse
 import json
 import os
 import random
@@ -96,8 +97,136 @@ def _patched_load_model(model_name):
 mc_orig.load_model = _patched_load_model
 
 
+# ----- Mixed-pool problem loader -----
+# Qwen3-1.7B saturates on MATH-500 levels 3-4, and even level-5 has
+# ceiling-ish behavior.  For a non-trivial proxy correlation study we
+# pull from MATH-500 (level 5) + AMC23 + AIME24 + AIME25 and uniformly
+# sample n_problems across them.  Falls back to MATH-500-only if HF
+# sources are unavailable.
+
+def _safe_hf_load(name, **kw):
+    from datasets import load_dataset
+    try:
+        return load_dataset(name, **kw)
+    except Exception as e:
+        print(f"[mixed] HF load failed for {name}: {e}")
+        return None
+
+
+def _build_mixed_pool(math500_levels):
+    from datasets import load_dataset
+
+    pool = []
+
+    # MATH-500 (filtered).
+    try:
+        ds = load_dataset("HuggingFaceH4/MATH-500", split="test")
+        n = 0
+        for x in ds:
+            if x.get("level") in math500_levels:
+                pool.append({"problem": x["problem"],
+                             "answer": str(x["answer"]),
+                             "level": f"MATH500-L{x.get('level')}",
+                             "source": "MATH-500"})
+                n += 1
+        print(f"[mixed] MATH-500 levels {math500_levels}: {n} problems")
+    except Exception as e:
+        print(f"[mixed] MATH-500 load failed: {e}")
+
+    # AMC23.
+    for name in ("AI-MO/aimo-validation-amc", "math-ai/amc23"):
+        ds = _safe_hf_load(name, split="train")
+        if ds is None:
+            ds = _safe_hf_load(name, split="test")
+        if ds is None:
+            continue
+        n = 0
+        for x in ds:
+            prob = x.get("problem") or x.get("Problem") or x.get("question")
+            ans = x.get("answer") or x.get("Answer") or x.get("final_answer")
+            if prob is None or ans is None:
+                continue
+            pool.append({"problem": str(prob), "answer": str(ans),
+                         "level": "AMC", "source": name})
+            n += 1
+        print(f"[mixed] {name}: {n} problems")
+        break
+
+    # AIME24.
+    for name in ("Maxwell-Jia/AIME_2024", "AI-MO/aimo-validation-aime"):
+        ds = _safe_hf_load(name, split="train")
+        if ds is None:
+            continue
+        n = 0
+        for x in ds:
+            prob = x.get("Problem") or x.get("problem") or x.get("question")
+            ans = x.get("Answer") or x.get("answer") or x.get("final_answer")
+            if prob is None or ans is None:
+                continue
+            pool.append({"problem": str(prob), "answer": str(ans),
+                         "level": "AIME24", "source": name})
+            n += 1
+        print(f"[mixed] {name} (AIME24): {n} problems")
+        break
+
+    # AIME25.
+    for name in ("opencompass/AIME2025", "yentinglin/aime_2025"):
+        ds = _safe_hf_load(name, split="train")
+        if ds is None:
+            ds = _safe_hf_load(name, split="test")
+        if ds is None:
+            continue
+        n = 0
+        for x in ds:
+            prob = x.get("problem") or x.get("Problem") or x.get("question")
+            ans = x.get("answer") or x.get("Answer") or x.get("final_answer")
+            if prob is None or ans is None:
+                continue
+            pool.append({"problem": str(prob), "answer": str(ans),
+                         "level": "AIME25", "source": name})
+            n += 1
+        print(f"[mixed] {name} (AIME25): {n} problems")
+        break
+
+    print(f"[mixed] total combined pool: {len(pool)} problems")
+    return pool
+
+
+def _patched_load_math_problems(target_levels, n=None):
+    """Replacement for monte_carlo_experiment.load_math_problems.
+
+    Ignores target_levels' interpretation as 'MATH-500 difficulty' when
+    the wrapper-level mixed-pool flag is set; uses target_levels as the
+    MATH-500 sub-filter inside the mixed pool instead.
+    """
+    if not _CLI_OVERRIDES.get("mixed_pool", True):
+        # Legacy path.
+        return _orig_load_math_problems(target_levels, n=n)
+
+    pool = _build_mixed_pool(target_levels)
+    if not pool:
+        print("[mixed] empty pool; falling back to MATH-500 only")
+        return _orig_load_math_problems(target_levels, n=n)
+
+    random.shuffle(pool)
+    if n is not None:
+        pool = pool[:n]
+    print(f"[mixed] using {len(pool)} problems "
+          f"(sources: "
+          f"{ {p['source'] for p in pool} })")
+    return pool
+
+
+_orig_load_math_problems = mc_orig.load_math_problems
+mc_orig.load_math_problems = _patched_load_math_problems
+
+
 # ----- Patch Config so model name + save dir + TP size are correct -----
 _OrigConfig = mc_orig.Config
+
+# Overrides set from CLI args in main(); kept at module scope so
+# _patched_Config (called inside legacy code) can read them.
+_CLI_OVERRIDES = {}
 
 
 def _patched_Config(*args, **kwargs):
@@ -105,6 +234,10 @@ def _patched_Config(*args, **kwargs):
     c.model_name = "Qwen/Qwen3-1.7B"
     c.save_dir = QWEN3_OUT_DIR
     c.vllm_tensor_parallel_size = TP_SIZE
+    if "n_problems" in _CLI_OVERRIDES:
+        c.n_problems = _CLI_OVERRIDES["n_problems"]
+    if "target_levels" in _CLI_OVERRIDES:
+        c.target_levels = list(_CLI_OVERRIDES["target_levels"])
     return c
 
 
@@ -193,6 +326,30 @@ mc_orig.plot_value_trajectories = _wrap_plot_fn(
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_problems", type=int, default=60,
+                        help="Number of problems to use for the proxy "
+                             "correlation study (default: 60).  More "
+                             "problems => smaller p-values for the "
+                             "within-problem Spearman.")
+    parser.add_argument("--target_levels", nargs="+", type=int,
+                        default=[5],
+                        help="MATH-500 difficulty levels included in the "
+                             "mixed pool (default: [5]).  When "
+                             "--no_mixed_pool is set, this is the only "
+                             "filter.")
+    parser.add_argument("--no_mixed_pool", action="store_true",
+                        help="Disable the mixed (MATH-500 + AMC23 + "
+                             "AIME24 + AIME25) pool and use MATH-500 only.")
+    args, _unknown = parser.parse_known_args()
+
+    _CLI_OVERRIDES["n_problems"] = args.n_problems
+    _CLI_OVERRIDES["target_levels"] = args.target_levels
+    _CLI_OVERRIDES["mixed_pool"] = not args.no_mixed_pool
+    print(f"[qwen3] n_problems={args.n_problems}, "
+          f"target_levels={args.target_levels}, "
+          f"mixed_pool={_CLI_OVERRIDES['mixed_pool']}")
+
     robust.dual_log(QWEN3_OUT_DIR)
 
     config = _patched_Config()

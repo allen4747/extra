@@ -19,7 +19,6 @@
 #   2. covo_experiment_multi_runs   ~1 hr on 1 GPU
 #   3. monte_carlo_experiment       ~2-3 hr (produces prefix_metrics_data.pkl)
 #   4. entropy_signal_analysis      ~15 min, CPU-only (consumes monte_carlo output)
-#   5. resampling_experiment        ~30 min, legacy single-number pass@32 (optional)
 #
 # Usage:
 #   conda activate verl
@@ -54,13 +53,10 @@ run_step () {
 }
 
 # Paper-critical experiments first.
-run_step "[1/5] resampling_passk_qwen3.py"             python resampling_passk_qwen3.py
-run_step "[2/5] covo_experiment_multi_runs_qwen3.py"   python covo_experiment_multi_runs_qwen3.py
-run_step "[3/5] monte_carlo_experiment_qwen3.py"       python monte_carlo_experiment_qwen3.py
-run_step "[4/5] entropy_signal_analysis_qwen3.py"      python entropy_signal_analysis_qwen3.py
-
-# Legacy resampling (single pass@32 number; superseded by [1]).
-run_step "[5/5] resampling_experiment_qwen3.py (legacy)" python resampling_experiment_qwen3.py
+run_step "[1/4] resampling_passk_qwen3.py"             python resampling_passk_qwen3.py --dataset aime24
+run_step "[2/4] covo_experiment_multi_runs_qwen3.py"   python covo_experiment_multi_runs_qwen3.py
+run_step "[3/4] monte_carlo_experiment_qwen3.py"       python monte_carlo_experiment_qwen3.py --n_problems 60
+run_step "[4/4] entropy_signal_analysis_qwen3.py"      python entropy_signal_analysis_qwen3.py
 
 echo ""                                                       | tee -a "$MASTER_LOG"
 echo "================================================="     | tee -a "$MASTER_LOG"
