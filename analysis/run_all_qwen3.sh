@@ -1,34 +1,36 @@
 #!/usr/bin/env bash
-# Run all Qwen3-1.7B prefix-heuristic / Monte-Carlo / resampling analyses.
+# Qwen3-1.7B paper analyses.  Two experiments only:
 #
-# Outputs (written under analysis/qwen3_outputs/, which is created if missing):
-#   <various>.pkl                              intermediate caches (resumable)
-#   prefix_correlations_raw.json               full correlation dict (one row per metric)
-#   prefix_correlations_table.json             sorted by |within_problem_corr|
-#   prefix_correlations_table.csv              paste-into-paper format
-#   prefix_analysis_summary.json               final summary written by mc_orig.main
-#   resampling_passk_qwen3.json                pass@k for {random, raw_entropy, smoothed_entropy}
-#   resampling_passk_qwen3.csv                 same in CSV form
-#   resampling_passk_bars.{pdf,png}            grouped bar plot (3 bars per pass@k)
-#   resampling_passk_bars.png.data.json        sidecar: arms x k_values for re-styling
-#   *.png + *.png.data.json                    each plot also dumps its data
-#   run_<ts>.log + run_all_<ts>.log            full stdout/stderr
+#   (1) Proxy correlation study  (monte_carlo + entropy_signal)
+#       - Spearman correlations between many candidate prefix metrics
+#         and the Monte-Carlo prefix pass-rate.
+#       - Mixed pool: MATH-500 (level 5) + AMC23 + AIME24 + AIME25.
+#       - Outputs: qwen3_outputs/prefix_correlations_table.{json,csv}
+#                  qwen3_outputs/2b_prefix_metrics_data.pkl   (cache)
+#                  qwen3_outputs/*.png                        (plots)
 #
-# Order (rough cost on 1 H200; vLLM TP scales with GPU count):
-#   1. resampling_passk_qwen3.py    ~30-60 min on 8 GPUs (paper bar plot)
-#   2. covo_experiment_multi_runs   ~1 hr on 1 GPU
-#   3. monte_carlo_experiment       ~2-3 hr (produces prefix_metrics_data.pkl)
-#   4. entropy_signal_analysis      ~15 min, CPU-only (consumes monte_carlo output)
+#   (2) Pass@k resampling experiment
+#       - 3 arms (random, raw MTE, smoothed MTE) x k in {1, 8, 16}
+#         on AIME24.
+#       - Outputs: qwen3_outputs/resampling_passk_qwen3.{json,csv}
+#                  qwen3_outputs/resampling_passk_bars.{pdf,png}
+#
+# Cost (1x 8-GPU H200 host, vLLM TP=8):
+#   - resampling_passk    ~30-60 min
+#   - monte_carlo         ~2-3 hr  (only step that uses the .pkl cache)
+#   - entropy_signal      ~15 min, CPU-only (consumes monte_carlo cache)
 #
 # Usage:
-#   conda activate verl
+#   conda activate ~/my_efs/envs/verl
 #   pip install matplotlib scipy tqdm sentence-transformers
 #   cd analysis/
 #   CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 bash run_all_qwen3.sh
 #
-# All scripts are resumable: if a cache .pkl already exists, that phase
-# is skipped.  We do NOT use `set -e`; if one script fails, the rest
-# still attempt to run and partial results are persisted.
+# Resumable: monte_carlo skips if 2b_prefix_metrics_data.pkl exists.
+# Delete that file to force a fresh run.  resampling_passk and
+# entropy_signal always rerun (cheap or no cache).
+# We do NOT use `set -e`; if one script fails, the rest still attempt
+# to run and partial results are persisted.
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
@@ -52,11 +54,12 @@ run_step () {
     fi
 }
 
-# Paper-critical experiments first.
-run_step "[1/4] resampling_passk_qwen3.py"             python resampling_passk_qwen3.py --dataset aime24
-run_step "[2/4] covo_experiment_multi_runs_qwen3.py"   python covo_experiment_multi_runs_qwen3.py
-run_step "[3/4] monte_carlo_experiment_qwen3.py"       python monte_carlo_experiment_qwen3.py --n_problems 60
-run_step "[4/4] entropy_signal_analysis_qwen3.py"      python entropy_signal_analysis_qwen3.py
+# (A) Pass@k resampling bar plot (paper figure).
+run_step "[1/3] resampling_passk_qwen3.py"        python resampling_passk_qwen3.py --dataset aime24
+
+# (B) Proxy correlation study: heavy MC sampling first, then CPU-only analysis.
+run_step "[2/3] monte_carlo_experiment_qwen3.py"  python monte_carlo_experiment_qwen3.py --n_problems 60
+run_step "[3/3] entropy_signal_analysis_qwen3.py" python entropy_signal_analysis_qwen3.py
 
 echo ""                                                       | tee -a "$MASTER_LOG"
 echo "================================================="     | tee -a "$MASTER_LOG"
