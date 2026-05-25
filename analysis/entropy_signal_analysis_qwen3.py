@@ -44,7 +44,7 @@ def main():
 
     src = src.replace(
         'DATA_PATH = Path(__file__).parent / "prefix_metrics_data.pkl"',
-        f'DATA_PATH = Path(r"{QWEN3_OUT_DIR}") / "prefix_metrics_data.pkl"',
+        f'DATA_PATH = Path(r"{QWEN3_OUT_DIR}") / "2b_prefix_metrics_data.pkl"',
     )
     src = src.replace(
         "OUT_DIR = Path(__file__).parent",
