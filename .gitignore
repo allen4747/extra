@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+*.egg
+
+# Build / packaging
+build/
+dist/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Training artifacts (don't check these in)
+checkpoints/
+outputs/
+wandb/
+ray_session*/
+ray_tmp/
+
+# Hydra
+multirun/
+.hydra/
+
+# Local override of the example scripts
+scripts/*_local.sh

@@ -1,0 +1,80 @@
+# ExTra recipe — overrides on top of the base PPO trainer config.
+# `algorithm.adv_estimator` is GRPO; we add two opt-in blocks: `curiosity`
+# (novelty rewards) and `guided_resampling` (entropy-guided prefix replay).
+
+hydra:
+  searchpath:
+    - file://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+algorithm:
+
+  # GRPO is the default ExTra base. Switch to "grpo_passk" for pass@k optimisation, etc.
+  adv_estimator: grpo
+
+  # ============================================================ #
+  # Curiosity reward (novelty bonus, gated by positive reward)   #
+  # ============================================================ #
+  curiosity:
+
+    # Master switch.
+    enable: False
+
+    # Scale α applied to the novelty term in:
+    #   score = sequence_reward + α * novelty * 1[reward > 0]
+    # 0.0 ⇒ novelty disabled even if `enable=True`.
+    novelty_reward_scale: 0.1
+
+    # If True (Option B): add novelty bonus AFTER GRPO normalisation.
+    # If False (Option A, default): add it BEFORE normalisation (legacy behaviour).
+    novelty_after_norm: False
+
+    # Which novelty signal to use:
+    #   "embedding"        — Sentence-Transformers cosine distance vs. recent rollouts
+    #   "ngram_count"      — inverse-sqrt n-gram visitation
+    #   "policy_surprise"  — z-scored negative log-prob among correct rollouts
+    novelty_metric: "embedding"
+
+    # n-gram size for the `ngram_count` metric (2 = bigram, 3 = trigram, ...).
+    novelty_ngram: 2
+
+    # Per-prompt rollout-embedding ring buffer size (for `embedding` metric).
+    max_rollouts_per_prompt: 16
+
+    # Per-prompt prefix ring buffer size (for guided_resampling).
+    max_prefixes_per_prompt: 128
+
+    # λ in dynamic per-prompt scaling: γ(x) = exp(-λ · Var_t[reward(x)]).
+    # 1.0 keeps the EMA-based scaling on (Option A only); set 0.0 to disable.
+    novelty_lambda: 1.0
+
+  # ============================================================ #
+  # Entropy-guided prefix resampling                             #
+  # ============================================================ #
+  guided_resampling:
+
+    # Master switch.
+    enable: False
+
+    # Softmax temperature when picking the lowest-smoothed-entropy prefix.
+    tau: 0.1
+
+    # How many guided prompts to inject per training step
+    # (taken from the queue and substituted into the tail of the dataloader batch).
+    regen_batch_size: 1
+
+    # Hard cap on the guided-prompt queue length.
+    max_queue_size: 16
+
+    # No guided resampling (and no prefix collection) until this many global steps
+    # have elapsed — gives the baseline policy a warm start.
+    warmup_steps: 100
+
+    # How to split rollouts into prefixes. "paragraph" = on newline tokens.
+    reasoning_split_mode: paragraph
+
+    # Sentence-Transformers model used to embed both rollouts and prefixes.
+    embedding_model: "sentence-transformers/all-MiniLM-L6-v2"
