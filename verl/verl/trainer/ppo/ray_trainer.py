@@ -20,7 +20,9 @@ This trainer supports model-agonistic model initialization with huggingface
 
 import json
 import os
+import random  # rebuttal: random-prefix baseline for MTE-gap logging
 import re
+import time  # rebuttal: queue-age instrumentation
 import uuid
 import warnings
 from collections import Counter, deque
@@ -907,10 +909,28 @@ class RayPPOTrainer:
             return
 
         tau = float(self._cfg_get("algorithm.guided_resampling.tau", 0.1))
+        # --- rebuttal (EMNLP): MTE-gap logging setup ---------------------------
+        # If algorithm.guided_resampling.log_mte_gap=True, for each hard prompt
+        # we also draw a uniformly random alternative prefix from the same
+        # prompt's prefix_memory and log both entropy scores + queue depth so
+        # the offline mte_gap_summary.py can compare MTE-selection vs random.
+        # Purely additive — behavior of enqueue is unchanged.
+        _log_mte_gap = bool(self._cfg_get("algorithm.guided_resampling.log_mte_gap", False))
+        _mte_gap_writer = None
+        if _log_mte_gap:
+            _mte_gap_writer = self._get_mte_gap_writer()
+        # -----------------------------------------------------------------------
         for k in hard_prompt_keys:
             best = self.curiosity_memory.select_best_prefix(k, tau=tau)
             if best is None:
                 continue
+            # --- rebuttal (EMNLP): MTE-gap logging ----------------------------
+            if _mte_gap_writer is not None:
+                try:
+                    self._log_mte_gap_entry(_mte_gap_writer, k, best)
+                except Exception as _e:  # never break training on logging errors
+                    warnings.warn(f"[mte_gap_log] skipped one entry: {_e}")
+            # -------------------------------------------------------------------
             guided_ids = list(k) + list(best["prefix_token_ids"])
             max_prompt_len = int(self._cfg_get("data.max_prompt_length", 2048))
             guided_ids = guided_ids[:max_prompt_len]
@@ -920,6 +940,62 @@ class RayPPOTrainer:
         max_queue = int(self._cfg_get("algorithm.guided_resampling.max_queue_size", 4096))
         if len(self._guided_prompt_queue) > max_queue:
             self._guided_prompt_queue = self._guided_prompt_queue[-max_queue:]
+
+    # ------------------------------------------------------------------
+    # rebuttal (EMNLP): MTE-gap + queue-age logging helpers.
+    # Gated behind algorithm.guided_resampling.log_mte_gap=True. When the
+    # flag is False (default), these helpers are never called.
+    # ------------------------------------------------------------------
+    def _get_mte_gap_writer(self):
+        """Lazily open outputs/mte_gap_log.jsonl (line-buffered) for append."""
+        if not hasattr(self, "_mte_gap_fp") or self._mte_gap_fp is None:
+            log_dir = os.path.join(os.getcwd(), "outputs")
+            os.makedirs(log_dir, exist_ok=True)
+            log_path = os.path.join(log_dir, "mte_gap_log.jsonl")
+            # Line-buffered append so a killed run still leaves valid JSONL.
+            self._mte_gap_fp = open(log_path, "a", buffering=1)
+            self._mte_gap_log_path = log_path
+        return self._mte_gap_fp
+
+    def _log_mte_gap_entry(self, fp, prompt_key: tuple[int, ...], best: dict) -> None:
+        """Log a single (MTE-selected, random-alternative) pair for one prompt.
+
+        We do NOT run extra generations here (would slow the hot path); we log
+        only what we already have: entropy scores, queue depth, timestamp, and
+        prefix identity hashes. The companion analysis script can, if desired,
+        replay continuations from a saved checkpoint to convert entropy gaps
+        into continuation pass-rate gaps.
+        """
+        entries = self.curiosity_memory.prefix_memory.get(prompt_key)
+        if not entries or len(entries) == 0:
+            return
+
+        # Pick a uniformly random *alternative* prefix (not the selected one).
+        best_ids = tuple(best.get("prefix_token_ids", ()))
+        candidates = [e for e in entries if tuple(e["prefix_token_ids"]) != best_ids]
+        random_entry = random.choice(candidates) if candidates else entries[0]
+
+        row = {
+            "step": int(getattr(self, "global_steps", -1)),
+            "ts": time.time(),
+            "prompt_hash": hash(prompt_key) & 0xFFFFFFFF,
+            "prefix_memory_size": len(entries),
+            "queue_size_before": len(self._guided_prompt_queue),
+            "mte_selected": {
+                "prefix_entropy_mean": float(best.get("prefix_entropy_mean", float("nan"))),
+                "smoothed_prefix_entropy_mean": float(
+                    best.get("smoothed_prefix_entropy_mean", float("nan"))
+                ),
+                "prefix_len": len(best.get("prefix_token_ids", ())),
+                "prefix_id_hash": hash(best_ids) & 0xFFFFFFFF,
+            },
+            "random_alt": {
+                "prefix_entropy_mean": float(random_entry.get("prefix_entropy_mean", float("nan"))),
+                "prefix_len": len(random_entry.get("prefix_token_ids", ())),
+                "prefix_id_hash": hash(tuple(random_entry["prefix_token_ids"])) & 0xFFFFFFFF,
+            },
+        }
+        fp.write(json.dumps(row) + "\n")
 
     def _dequeue_guided_prompts_for_regen(self) -> list[list[int]]:
         warmup_steps = int(self._cfg_get("algorithm.guided_resampling.warmup_steps", 100))
