@@ -30,6 +30,11 @@ huggingface-cli download Qwen/Qwen3-1.7B
 python -c "import verl.verl.trainer.ppo.ray_trainer as _; print('OK')"
 ```
 
+**Pre-flight memory check** — the 8B scripts assume ~65 GB peak/GPU on 80 GB
+H100 (no offload, FSDP-8 sharding, TP=2 for vLLM, GMU=0.80). If your H100s
+are the 40 GB SXM variant or you have other processes resident, jump
+straight to "Fallback tier 3" in the fallback section before launching.
+
 **On the dev laptop (analyses that need no GPU):** you can already run
 `decontam_ngram.py` if you have the parquets locally — see Day 3.
 
@@ -187,18 +192,54 @@ Section 5 checklist. `analysis/rebuttal/README.md` has the exact placeholder
 
 ## Fallbacks
 
-### 8B OOMs at step 1
+### 8B OOMs at step 1 — tiered fallback
 
-The scripts already enable FSDP param & optimizer offload and cap
-`gpu_memory_utilization=0.55`. If it still OOMs:
+The default 8B config assumes full FSDP-8 sharding (no offload),
+`gpu_memory_utilization=0.80`, `tensor_model_parallel_size=2`, and dynamic
+batching capped at `ppo_max_token_len_per_gpu=32768`. Peak per-GPU memory
+should stay under ~65 GB. If you still hit OOM, apply the tiers in order —
+each tier trades ~10-30% throughput for headroom, so use the smallest tier
+that keeps training stable.
 
+**Tier 1 — squeeze KV cache and dynamic-bsz cap** (cheap, ~5% slowdown):
 ```bash
-# Reduce micro-batch further and shrink KV-cache budget
 bash verl/examples/experiments/ExTra_Rebuttal/01_grpo_nano8b.sh \
-  actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=2 \
-  actor_rollout_ref.rollout.gpu_memory_utilization=0.45 \
-  actor_rollout_ref.rollout.tensor_model_parallel_size=4
+  actor_rollout_ref.rollout.gpu_memory_utilization=0.70 \
+  actor_rollout_ref.actor.ppo_max_token_len_per_gpu=24576 \
+  actor_rollout_ref.rollout.max_num_batched_tokens=24576
 ```
+
+**Tier 2 — halve micro-batch, drop dynamic-bsz cap further** (~15% slowdown):
+```bash
+bash verl/examples/experiments/ExTra_Rebuttal/01_grpo_nano8b.sh \
+  actor_rollout_ref.rollout.gpu_memory_utilization=0.65 \
+  actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=2 \
+  actor_rollout_ref.actor.ppo_max_token_len_per_gpu=16384 \
+  actor_rollout_ref.rollout.log_prob_micro_batch_size_per_gpu=2 \
+  actor_rollout_ref.ref.log_prob_micro_batch_size_per_gpu=2
+```
+
+**Tier 3 — enable optimizer offload only** (~25% slowdown but frees ~10-15 GB/GPU):
+```bash
+bash verl/examples/experiments/ExTra_Rebuttal/01_grpo_nano8b.sh \
+  actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
+  actor_rollout_ref.rollout.gpu_memory_utilization=0.60
+```
+
+**Tier 4 — full param + optimizer offload, TP=4** (last resort, ~40-50% slowdown):
+```bash
+bash verl/examples/experiments/ExTra_Rebuttal/01_grpo_nano8b.sh \
+  actor_rollout_ref.actor.fsdp_config.param_offload=True \
+  actor_rollout_ref.actor.fsdp_config.optimizer_offload=True \
+  actor_rollout_ref.rollout.tensor_model_parallel_size=4 \
+  actor_rollout_ref.rollout.gpu_memory_utilization=0.55 \
+  actor_rollout_ref.actor.ppo_micro_batch_size_per_gpu=2
+```
+
+Apply the same overrides to `02_extra_full_nano8b.sh`. **Do NOT mix tiers
+between GRPO and ExTra** — the paired comparison depends on both runs using
+the same memory config so throughput/wall-clock is comparable in the R§5.5
+paragraph.
 
 ### 8B step-time > 15 min (won't finish in the window)
 

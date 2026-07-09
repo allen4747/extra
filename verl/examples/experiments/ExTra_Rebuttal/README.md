@@ -6,11 +6,15 @@ Scripts to run the two experiments the reviewers asked for, plus the eval wrappe
 
 | Script | Purpose | Reviewer concern | Wall-clock (8xH100) |
 |---|---|---|---|
-| `01_grpo_nano8b.sh` | GRPO baseline on `nvidia/Llama-3.1-Nemotron-Nano-8B-v1`, 150 steps | XB9Q W6, xvYm W3 (scale) | ~24h |
-| `02_extra_full_nano8b.sh` | Full ExTra on same 8B model, 150 steps, MTE-gap logging on | Same + XB9Q W3/Q3, xvYm W2 (MTE) | ~24h |
-| `03_grpo_qwen3_seed2.sh` | GRPO on Qwen3-1.7B, second seed | XB9Q W2/Q2, xvYm W1 (variance) | ~12h |
-| `04_extra_full_qwen3_seed2.sh` | Full ExTra on Qwen3-1.7B, second seed, MTE-gap logging on | Same | ~12h |
+| `01_grpo_nano8b.sh` | GRPO baseline on `nvidia/Llama-3.1-Nemotron-Nano-8B-v1`, 150 steps | XB9Q W6, xvYm W3 (scale) | ~12–18h |
+| `02_extra_full_nano8b.sh` | Full ExTra on same 8B model, 150 steps, MTE-gap logging on | Same + XB9Q W3/Q3, xvYm W2 (MTE) | ~14–20h |
+| `03_grpo_qwen3_seed2.sh` | GRPO on Qwen3-1.7B, second seed | XB9Q W2/Q2, xvYm W1 (variance) | ~8–12h |
+| `04_extra_full_qwen3_seed2.sh` | Full ExTra on Qwen3-1.7B, second seed, MTE-gap logging on | Same | ~8–12h |
 | `05_eval_all_rebuttal.sh` | Evaluate the four checkpoints on all six benchmarks (pass@1, pass@16) | Feeds R1/R3 tables | ~4–6h |
+
+Wall-clock ranges assume no-offload FSDP-8 sharding for the 8B runs. If you
+apply RUNBOOK Fallback tier 3 (optimizer offload) the 8B time grows to
+~20–24h; tier 4 (full offload) grows to ~28–36h. Plan accordingly.
 
 ## Environment
 
