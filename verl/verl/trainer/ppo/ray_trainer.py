@@ -1023,16 +1023,26 @@ class RayPPOTrainer:
         This avoids a second generation call by piggy-backing guided prompts
         onto the normal batch.  Returns the number of prompts replaced.
         """
+        # --- ExTra: tag which rows are guided-injected so downstream advantage
+        #     post-processing (positive-only clamp) can target them without
+        #     touching real prompts. Stored in non_tensor_batch so it survives
+        #     batch.repeat(rollout.n) and batch.union(gen_batch_output). ---
+        batch_size = batch.batch["input_ids"].shape[0]
+        batch.non_tensor_batch["is_guided"] = np.zeros(batch_size, dtype=bool)
+        # ----------------------------------------------------------------------
+
         guided_prompt_lists = self._dequeue_guided_prompts_for_regen()
         if len(guided_prompt_lists) == 0:
             return 0
 
-        batch_size = batch.batch["input_ids"].shape[0]
         n_replace = min(len(guided_prompt_lists), batch_size)
         # If we dequeued more than fits, re-queue the excess at the front
         if n_replace < len(guided_prompt_lists):
             self._guided_prompt_queue = guided_prompt_lists[n_replace:] + self._guided_prompt_queue
         guided_prompt_lists = guided_prompt_lists[:n_replace]
+
+        # ExTra: mark the tail rows that will be overwritten as guided.
+        batch.non_tensor_batch["is_guided"][batch_size - n_replace:] = True
 
         # Build guided tensors with the same max_prompt_length as the batch
         pad_id = self.tokenizer.pad_token_id
@@ -2162,6 +2172,55 @@ class RayPPOTrainer:
                                 norm_adv_by_std_in_grpo=norm_adv_by_std_in_grpo,
                                 config=self.config.algorithm,
                             )
+
+                        # --- ExTra: POSITIVE-ONLY advantages for guided rows ---
+                        # Guided-injected prompts (hard 0%-pass prompt + a
+                        # confident low-entropy prefix) are rolled out fresh. We
+                        # KEEP the positive advantage of lucky-correct
+                        # continuations (the useful exploration signal,
+                        # "Condition B"), but CLAMP AWAY the negative advantage
+                        # of failed continuations: those negatives would push the
+                        # policy away from behavior conditioned on an
+                        # off-distribution prefix the model still emits at eval,
+                        # which we found drives the 8B AIME24 accuracy drop.
+                        # Real prompts are untouched. Toggle:
+                        #   algorithm.guided_resampling.positive_only_adv (default True)
+                        if (
+                            bool(self._cfg_get("algorithm.guided_resampling.positive_only_adv", True))
+                            and "is_guided" in batch.non_tensor_batch
+                        ):
+                            gmask = torch.as_tensor(
+                                batch.non_tensor_batch["is_guided"].astype(bool),
+                                device=batch.batch["advantages"].device,
+                            )
+                            if gmask.any():
+                                adv = batch.batch["advantages"]
+                                adv[gmask] = adv[gmask].clamp_min(0.0)
+                                batch.batch["advantages"] = adv
+                                if "returns" in batch.batch:
+                                    ret = batch.batch["returns"]
+                                    ret[gmask] = ret[gmask].clamp_min(0.0)
+                                    batch.batch["returns"] = ret
+                                metrics["exploration/guided_pos_only_rows"] = int(gmask.sum().item())
+
+                        # --- ExTra: guided-resampling solve-rate diagnostics ---
+                        # Evidence for whether guided resampling actually cracks
+                        # 0%-pass prompts (positive story) vs merely avoids harm.
+                        if "is_guided" in batch.non_tensor_batch:
+                            gmask_np = batch.non_tensor_batch["is_guided"].astype(bool)
+                            if gmask_np.any():
+                                seq_scores = batch.batch["token_level_scores"].sum(dim=-1)
+                                gscores = seq_scores[torch.as_tensor(gmask_np, device=seq_scores.device)]
+                                gsolved = (gscores > 0).float()
+                                # per-rollout solve rate over injected rows
+                                metrics["exploration/guided_solve_rate"] = float(gsolved.mean().item())
+                                # fraction of guided groups (rollout.n rollouts) with >=1 correct
+                                n_rep = max(int(self.config.actor_rollout_ref.rollout.n), 1)
+                                if gsolved.numel() % n_rep == 0:
+                                    grouped = gsolved.view(-1, n_rep)
+                                    metrics["exploration/guided_frac_mixed"] = float(
+                                        (grouped.sum(dim=-1) > 0).float().mean().item()
+                                    )
 
                     # update critic
                     if self.use_critic:
